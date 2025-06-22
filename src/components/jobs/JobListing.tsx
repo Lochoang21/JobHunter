@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import JobFilter from './JobFilter';
+import SearchJob from './SearchJob';
 import CardJob from './CardJob';
 import api from '@/services/api';
 import { Job, JobResponse } from '@/types/job';
@@ -15,9 +17,11 @@ interface FilterState {
 }
 
 const JobListing: React.FC = () => {
+  const searchParams = useSearchParams();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [meta, setMeta] = useState({ page: 1, pageSize: 6, pages: 1, total: 0 });
   const [filters, setFilters] = useState<FilterState>({
     employmentTypes: [],
     skills: [],
@@ -25,27 +29,72 @@ const JobListing: React.FC = () => {
     salaryRanges: [],
   });
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchJobTitle, setSearchJobTitle] = useState(searchParams.get('jobTitle') || '');
+  const [searchLocation, setSearchLocation] = useState(searchParams.get('location') || '');
   const jobsPerPage = 6; // Display 6 jobs per page
 
-  // Fetch jobs from API
-  useEffect(() => {
-    const fetchJobs = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await api.get<JobResponse>('/jobs');
-        setJobs(response.data.data.result);
-        console.log('Jobs fetched:', response.data.data.result);
-        setCurrentPage(1); // Reset to page 1 when new jobs are fetched
-      } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to fetch jobs');
-        console.error('Fetch jobs error:', err.response?.data || err.message);
-      } finally {
-        setLoading(false);
+  // Fetch jobs from API with search parameters
+  const fetchJobs = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Build filter string for API
+      let filterString = '';
+      const filters = [];
+
+      if (searchJobTitle) {
+        filters.push(`name~'${searchJobTitle}'`);
       }
-    };
+
+      if (searchLocation) {
+        filters.push(`location~'${searchLocation}'`);
+      }
+
+      if (filters.length > 0) {
+        filterString = filters.join(' AND ');
+      }
+
+      const params: any = {
+        page: currentPage,
+        size: jobsPerPage
+      };
+
+      if (filterString) {
+        params.filter = filterString;
+      }
+
+      const response = await api.get<JobResponse>('/jobs', { params });
+      setJobs(response.data.data.result);
+      setMeta(response.data.data.meta);
+      console.log('Jobs fetched with search:', response.data.data.result);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to fetch jobs');
+      console.error('Fetch jobs error:', err.response?.data || err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [searchJobTitle, searchLocation, currentPage, jobsPerPage]);
+
+  // Fetch jobs when search parameters or page changes
+  useEffect(() => {
     fetchJobs();
-  }, []);
+  }, [fetchJobs]);
+
+  // Update search parameters when URL changes
+  useEffect(() => {
+    const jobTitle = searchParams.get('jobTitle') || '';
+    const location = searchParams.get('location') || '';
+    setSearchJobTitle(jobTitle);
+    setSearchLocation(location);
+    setCurrentPage(1); // Reset to page 1 when search changes
+  }, [searchParams]);
+
+  const handleSearch = (jobTitle: string, location: string) => {
+    setSearchJobTitle(jobTitle);
+    setSearchLocation(location);
+    setCurrentPage(1);
+  };
 
   const handleFilterChange = (newFilters: FilterState) => {
     setFilters(newFilters);
@@ -136,6 +185,7 @@ const JobListing: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
+        <SearchJob onSearch={handleSearch} />
         <div className="container mx-auto px-4 py-8">
           <div className="flex gap-8">
             {/* Filter Sidebar Skeleton */}
@@ -193,6 +243,7 @@ const JobListing: React.FC = () => {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50">
+        <SearchJob onSearch={handleSearch} />
         <div className="container mx-auto px-4 py-8">
           <div className="text-center py-16">
             <div className="w-24 h-24 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
@@ -226,6 +277,7 @@ const JobListing: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <SearchJob onSearch={handleSearch} />
       <div className="container mx-auto px-4 py-8">
         <div className="flex gap-8">
           {/* Filter Sidebar */}
@@ -241,13 +293,33 @@ const JobListing: React.FC = () => {
                 Danh sách <span className="text-blue-500">việc làm</span>
               </h1>
               <p className="text-gray-600 text-lg">Tìm kiếm cơ hội việc làm phù hợp với bạn</p>
+
+              {/* Search Results Summary */}
+              {(searchJobTitle || searchLocation) && (
+                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h3 className="text-sm font-semibold text-blue-900 mb-2">Kết quả tìm kiếm:</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {searchJobTitle && (
+                      <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                        Tên công việc: {searchJobTitle}
+                      </span>
+                    )}
+                    {searchLocation && (
+                      <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                        Địa điểm: {searchLocation}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="mt-4 flex items-center gap-4">
                 <span className="text-sm text-gray-500">
                   Hiển thị{' '}
                   <span className="font-semibold">
-                    {Math.min(currentPage * jobsPerPage, filteredJobs.length)}
+                    {Math.min(currentPage * jobsPerPage, meta.total)}
                   </span>{' '}
-                  trong số <span className="font-semibold">{filteredJobs.length}</span> việc làm
+                  trong số <span className="font-semibold">{meta.total}</span> việc làm
                 </span>
                 {(filters.employmentTypes.length > 0 ||
                   filters.skills.length > 0 ||
@@ -306,16 +378,16 @@ const JobListing: React.FC = () => {
             ) : filteredJobs.length > 0 ? (
               <>
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-6 mb-8">
-                  {paginatedJobs.map((job) => (
+                  {filteredJobs.map((job) => (
                     <CardJob key={job.id} job={job} />
                   ))}
                 </div>
-                {/* Pagination */}
-                {totalPages > 1 && (
+                {/* Pagination - Always show when there are multiple pages from API */}
+                {meta.pages > 1 && (
                   <div className="flex overflow-x-auto sm:justify-center">
                     <Pagination
-                      currentPage={currentPage}
-                      totalPages={totalPages}
+                      currentPage={meta.page}
+                      totalPages={meta.pages}
                       onPageChange={onPageChange}
                       showIcons
                     />

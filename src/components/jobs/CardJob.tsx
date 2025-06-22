@@ -91,7 +91,7 @@ const CardJob: React.FC<CardJobProps> = ({ job }) => {
             </span>
           )}
           {job.skills && job.skills.length > 0 && (
-            job.skills.slice(0, 2).map((skill) => (
+            job.skills.map((skill) => (
               <span
                 key={skill.id}
                 className="px-3 py-2 rounded-full text-xs font-medium bg-teal-100 text-teal-600"

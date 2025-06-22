@@ -1,37 +1,24 @@
 import React from "react";
 
 import NewCustomers from "../components/dashboard/NewCustomers";
-
-import ProductRevenue from "../components/dashboard/ProductRevenue";
 import DailyActivity from "../components/dashboard/DailyActivity";
-import BlogCards from "../components/dashboard/BlogCards";
 import Link from "next/link";
 
 const page = () => {
   return (
     <>
       <div className="grid grid-cols-12 gap-30">
-        <div className="lg:col-span-8 col-span-12">
-          
+        <div className="lg:col-span-4 col-span-12">
+          <NewCustomers />
         </div>
         <div className="lg:col-span-4 col-span-12">
-          <div className="grid grid-cols-12 h-full items-stretch">
-            <div className="col-span-12 mb-30">
-              <NewCustomers />
-            </div>
-            <div className="col-span-12">
-              
-            </div>
-          </div>
-        </div>
-        <div className="lg:col-span-8 col-span-12">
-          <ProductRevenue />
+          <NewCustomers />
         </div>
         <div className="lg:col-span-4 col-span-12">
+          <NewCustomers />
+        </div>
+        <div className="lg:col-span-12 col-span-12">
           <DailyActivity />
-        </div>
-        <div className="col-span-12">
-          <BlogCards />
         </div>
         <div className="col-span-12 text-center">
           <p className="text-base">

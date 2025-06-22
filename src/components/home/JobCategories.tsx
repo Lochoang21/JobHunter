@@ -77,15 +77,6 @@ const JobCategories = () => {
                         </Link>
                     ))}
                 </div>
-
-                <div className="text-center mt-12">
-                    <Link
-                        href="/jobs"
-                        className="inline-block bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary-dark transition-colors"
-                    >
-                        Xem tất cả danh mục
-                    </Link>
-                </div>
             </div>
         </section>
     );

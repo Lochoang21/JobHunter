@@ -1,12 +1,55 @@
 'use client';
 import React, { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
-const SearchJob = () => {
-  const [jobTitle, setJobTitle] = useState('');
-  const [location, setLocation] = useState('Hồ Chí Minh');
+interface SearchJobProps {
+  onSearch?: (jobTitle: string, location: string) => void;
+}
+
+const SearchJob: React.FC<SearchJobProps> = ({ onSearch }) => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [jobTitle, setJobTitle] = useState(searchParams.get('jobTitle') || '');
+  const [location, setLocation] = useState(searchParams.get('location') || 'TP Hồ Chí Minh');
   const [isLocationOpen, setIsLocationOpen] = useState(false);
 
   const popularTags = ['UI Designer', 'UX Researcher', 'Android', 'Admin'];
+
+  // Mảng các thành phố
+  const cities = [
+    'TP Hồ Chí Minh',
+    'Hà Nội',
+    'Đà Nẵng',
+    'Bình Dương',
+    'Cần Thơ',
+    'Hải Phòng',
+    'Vũng Tàu',
+    'Huế'
+  ];
+
+  const handleSearch = () => {
+    const params = new URLSearchParams();
+    if (jobTitle.trim()) {
+      params.set('jobTitle', jobTitle.trim());
+    }
+    if (location) {
+      params.set('location', location);
+    }
+
+    // Navigate to job listing page with search parameters
+    router.push(`/job?${params.toString()}`);
+
+    // Call onSearch callback if provided
+    if (onSearch) {
+      onSearch(jobTitle.trim(), location);
+    }
+  };
+
+  const handlePopularTagClick = (tag: string) => {
+    setJobTitle(tag);
+    handleSearch();
+  };
 
   return (
     <div>
@@ -31,12 +74,12 @@ const SearchJob = () => {
               {/* Job Title Search */}
               <div className="flex-1 relative">
                 <div className="flex items-center">
-                  
                   <input
                     type="text"
                     placeholder="Job title or keyword"
                     value={jobTitle}
                     onChange={(e) => setJobTitle(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                     className="w-full px-4 py-3 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-0 border-0"
                   />
                 </div>
@@ -52,49 +95,35 @@ const SearchJob = () => {
                   className="w-full flex items-center justify-between px-4 py-3 text-gray-700 hover:bg-gray-50 focus:outline-none"
                 >
                   <div className="flex items-center">
-                   
                     <span>{location}</span>
                   </div>
-                 
                 </button>
-                
+
                 {isLocationOpen && (
                   <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg mt-1 z-10">
                     <div className="p-2">
-                      <div 
-                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer rounded"
-                        onClick={() => {
-                          setLocation('Hồ Chí Minh');
-                          setIsLocationOpen(false);
-                        }}
-                      >
-                        Hồ Chí Minh
-                      </div>
-                      <div 
-                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer rounded"
-                        onClick={() => {
-                          setLocation('Hà Nội');
-                          setIsLocationOpen(false);
-                        }}
-                      >
-                        Hà Nội
-                      </div>
-                      <div 
-                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer rounded"
-                        onClick={() => {
-                          setLocation('Đà Nẵng');
-                          setIsLocationOpen(false);
-                        }}
-                      >
-                        Đà Nẵng
-                      </div>
+                      {cities.map((city, index) => (
+                        <div
+                          key={index}
+                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer rounded"
+                          onClick={() => {
+                            setLocation(city);
+                            setIsLocationOpen(false);
+                          }}
+                        >
+                          {city}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
               </div>
 
               {/* Search Button */}
-              <button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors">
+              <button
+                onClick={handleSearch}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors"
+              >
                 Search
               </button>
             </div>
@@ -104,7 +133,10 @@ const SearchJob = () => {
               <span className="text-gray-600 mr-4">Popular:</span>
               {popularTags.map((tag, index) => (
                 <span key={index}>
-                  <button className="text-gray-600 hover:text-blue-600 transition-colors">
+                  <button
+                    onClick={() => handlePopularTagClick(tag)}
+                    className="text-gray-600 hover:text-blue-600 transition-colors"
+                  >
                     {tag}
                   </button>
                   {index < popularTags.length - 1 && (

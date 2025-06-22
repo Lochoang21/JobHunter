@@ -11,8 +11,17 @@ const HeroSection = () => {
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
         if (searchQuery.trim()) {
-            router.push(`/jobs?search=${encodeURIComponent(searchQuery.trim())}`);
+            // Use the same filter syntax as JobTable: filter=name~'searchTerm'
+            const filter = `name~'${searchQuery.trim()}'`;
+            router.push(`/job?filter=${encodeURIComponent(filter)}`);
         }
+    };
+
+    const handlePopularSearch = (query: string) => {
+        setSearchQuery(query);
+        // Use the same filter syntax as JobTable for popular searches
+        const filter = `name~'${query}'`;
+        router.push(`/job?filter=${encodeURIComponent(filter)}`);
     };
 
     return (
@@ -30,7 +39,7 @@ const HeroSection = () => {
                     <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
                         <TextInput
                             type="text"
-                            placeholder="Nhập từ khóa tìm kiếm (ví dụ: Frontend Developer, Marketing...)"
+                            placeholder="Tìm kiếm theo tên công việc (VD: Software Engineer, Frontend Developer...)"
                             className="flex-grow"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
@@ -44,17 +53,26 @@ const HeroSection = () => {
                     <div className="mt-6">
                         <p className="text-sm text-gray-200 mb-2">Tìm kiếm phổ biến:</p>
                         <div className="flex flex-wrap justify-center gap-2">
-                            {['Frontend Developer', 'Backend Developer', 'Marketing', 'Sales', 'HR'].map(
-                                (tag) => (
-                                    <button
-                                        key={tag}
-                                        onClick={() => setSearchQuery(tag)}
-                                        className="text-sm bg-white/10 hover:bg-white/20 px-3 py-1 rounded-full transition-colors"
-                                    >
-                                        {tag}
-                                    </button>
-                                )
-                            )}
+                            {[
+                                'Software Engineer',
+                                'Frontend Developer',
+                                'Backend Developer',
+                                'Java Developer',
+                                'React Developer',
+                                'Python Developer',
+                                'Mobile Developer',
+                                'DevOps Engineer',
+                                'Data Scientist',
+                                'Product Manager'
+                            ].map((tag) => (
+                                <button
+                                    key={tag}
+                                    onClick={() => handlePopularSearch(tag)}
+                                    className="text-sm bg-white/10 hover:bg-white/20 px-3 py-1 rounded-full transition-colors"
+                                >
+                                    {tag}
+                                </button>
+                            ))}
                         </div>
                     </div>
                 </div>

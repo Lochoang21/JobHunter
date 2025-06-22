@@ -1,16 +1,11 @@
-// app/users/page.tsx
+// app/resume/page.tsx
 import React from "react";
-import UserTable from "@/app/components/users/UserTable";
-import CreateUser from "@/app/components/users/CreateUser";
+import ResumeTable from "@/app/components/resume/ResumeTable";
 
-export default function UsersPage() {
+export default function ResumePage() {
   return (
     <div className="container mx-auto p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-semibold">Resume</h2>
-        <CreateUser />
-      </div>
-      <UserTable />
+      <ResumeTable />
     </div>
   );
 }

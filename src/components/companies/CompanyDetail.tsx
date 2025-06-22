@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Company } from '@/types/company';
+import { Job } from '@/types/job';
 import api from '@/services/api';
+import CardJob from '@/components/jobs/CardJob';
 
 // Add custom styles for rich text content
 const richTextStyles = `
@@ -18,7 +21,18 @@ const richTextStyles = `
   .rich-text-content pre { background-color: #f3f4f6; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; }
   .rich-text-content a { color: #3b82f6; text-decoration: underline; }
   .rich-text-content a:hover { color: #1d4ed8; }
+  .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 `;
+
+// Format date helper
+const formatDate = (dateString: string | null) => {
+  if (!dateString) return 'N/A';
+  return new Date(dateString).toLocaleDateString('vi-VN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+};
 
 interface CompanyDetailProps {
   companyId: string | number;
@@ -26,7 +40,9 @@ interface CompanyDetailProps {
 
 const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId }) => {
   const [company, setCompany] = useState<Company | null>(null);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const [jobsLoading, setJobsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -42,7 +58,28 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId }) => {
         setLoading(false);
       }
     };
-    if (companyId) fetchCompany();
+
+    const fetchCompanyJobs = async () => {
+      setJobsLoading(true);
+      try {
+        // Fetch all jobs and filter by companyId
+        const response = await api.get('jobs');
+        const allJobs = response.data.data.result || [];
+        // Filter jobs that belong to this company
+        const companyJobs = allJobs.filter((job: Job) => job.company?.id === Number(companyId));
+        setJobs(companyJobs);
+      } catch (error: any) {
+        console.error('Failed to fetch company jobs:', error);
+        setJobs([]);
+      } finally {
+        setJobsLoading(false);
+      }
+    };
+
+    if (companyId) {
+      fetchCompany();
+      fetchCompanyJobs();
+    }
   }, [companyId]);
 
   // Loading state
@@ -113,28 +150,11 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId }) => {
     { name: 'Framer', icon: '⚫', color: 'bg-gray-100' },
   ];
 
-  const officeLocations = [
-    { country: 'United States', flag: '🇺🇸' },
-    { country: 'England', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
-    { country: 'Japan', flag: '🇯🇵' },
-    { country: 'Australia', flag: '🇦🇺' },
-    { country: 'China', flag: '🇨🇳' },
-  ];
-
   const socialLinks = company ? [
     { name: 'Twitter', url: `https://twitter.com/${company.name.toLowerCase()}`, icon: '🐦' },
     { name: 'Facebook', url: `https://facebook.com/${company.name}HQ`, icon: '📘' },
     { name: 'LinkedIn', url: `https://linkedin.com/company/${company.name.toLowerCase()}`, icon: '💼' },
   ] : [];
-
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -175,7 +195,7 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId }) => {
                   <div className="flex items-center gap-4 mb-4">
                     <h1 className="text-4xl font-bold text-gray-900">{company.name}</h1>
                     <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                      {company.jobCount || Math.floor(Math.random() * 50) + 1} Jobs
+                      {jobs.length} Jobs
                     </span>
                   </div>
 
@@ -248,60 +268,7 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId }) => {
               )}
             </div>
 
-            {/* Contact Section */}
-            <div className="bg-white rounded-lg p-8 shadow-sm">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Contact</h2>
-              <div className="flex flex-wrap gap-4">
-                {socialLinks.map((social, index) => (
-                  <a
-                    key={index}
-                    href={social.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <span>{social.icon}</span>
-                    <span className="text-sm">{social.url}</span>
-                  </a>
-                ))}
-              </div>
-            </div>
 
-            {/* Office Photos */}
-            {/* <div className="bg-white rounded-lg p-8 shadow-sm">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="aspect-video bg-gray-200 rounded-lg overflow-hidden">
-                  <img
-                    src="/api/placeholder/600/400"
-                    alt="Office space"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="aspect-square bg-gray-200 rounded-lg overflow-hidden">
-                    <img
-                      src="/api/placeholder/300/300"
-                      alt="Team meeting"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="aspect-square bg-gray-200 rounded-lg overflow-hidden">
-                    <img
-                      src="/api/placeholder/300/300"
-                      alt="Collaboration"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="aspect-square bg-gray-200 rounded-lg overflow-hidden">
-                    <img
-                      src="/api/placeholder/300/300"
-                      alt="Team celebration"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div> */}
           </div>
 
           {/* Right Column - Tech Stack & Locations */}
@@ -328,27 +295,63 @@ const CompanyDetail: React.FC<CompanyDetailProps> = ({ companyId }) => {
                 View tech stack →
               </a>
             </div>
+          </div>
 
-            {/* Office Locations */}
-            <div className="bg-white rounded-lg p-6 shadow-sm">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">Office Location</h3>
-              <p className="text-gray-600 text-sm mb-6">
-                {company.name} offices spread across 20 countries
-              </p>
 
-              <div className="space-y-4 mb-6">
-                {officeLocations.map((location, index) => (
-                  <div key={index} className="flex items-center gap-3">
-                    <span className="text-lg">{location.flag}</span>
-                    <span className="font-medium text-gray-900">{location.country}</span>
-                  </div>
-                ))}
-              </div>
+        </div>
+        {/* Jobs Section */}
+        <div className="bg-white rounded-lg p-8 shadow-sm my-10">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">
+              Việc làm tại {company.name}
+            </h2>
+            <span className="text-sm text-gray-500">
+              {jobsLoading ? 'Đang tải...' : `${jobs.length} vị trí đang tuyển`}
+            </span>
+          </div>
 
-              <a href="#" className="text-blue-600 text-sm font-medium hover:underline">
-                View countries →
-              </a>
+          {jobsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-2 text-gray-600">Đang tải danh sách công việc...</span>
             </div>
+          ) : jobs.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {jobs.map((job) => (
+                <CardJob key={job.id} job={job} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m-8 0h8" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Chưa có công việc nào</h3>
+              <p className="text-gray-600">
+                {company.name} hiện tại chưa có vị trí tuyển dụng nào.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Contact Section */}
+        <div className="bg-white rounded-lg p-8 shadow-sm">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Contact</h2>
+          <div className="flex flex-wrap gap-4">
+            {socialLinks.map((social, index) => (
+              <a
+                key={index}
+                href={social.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <span>{social.icon}</span>
+                <span className="text-sm">{social.url}</span>
+              </a>
+            ))}
           </div>
         </div>
       </div>
