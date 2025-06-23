@@ -228,23 +228,19 @@ const CompanyTable: React.FC<CompanyTableProps> = ({ refreshKey = 0 }) => {
                       : "N/A"}
                   </Table.Cell>
                   <Table.Cell>
-                    <Dropdown
-                      label=""
-                      dismissOnClick={false}
-                      renderTrigger={() => (
-                        <span className="h-9 w-9 flex justify-center items-center rounded-full hover:bg-lightprimary hover:text-primary cursor-pointer">
-                          <HiOutlineDotsVertical size={22} />
-                        </span>
-                      )}
-                    >
-                      {tableActionData.map((item, index) => (
-                        <Dropdown.Item key={index} className="flex gap-3" onClick={() => item.onClick?.(company)}>
-                          <Icon icon={item.icon} height={18} />
-                          <span>{item.listtitle}</span>
-                        </Dropdown.Item>
-                      ))}
-                    </Dropdown>
-                  </Table.Cell>
+                      <div className="flex justify-center items-center">
+                        {tableActionData.map((item, index) => (
+                          <button
+                            key={index}
+                            onClick={() => item.onClick?.(company)}
+                            className="p-2 rounded-full hover:bg-lightprimary hover:text-primary transition-colors"
+                            title={item.listtitle}
+                          >
+                            <Icon icon={item.icon} height={18} />
+                          </button>
+                        ))}
+                      </div>
+                    </Table.Cell>
                 </Table.Row>
               ))}
             </Table.Body>

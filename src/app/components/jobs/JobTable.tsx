@@ -193,8 +193,6 @@ const JobTable: React.FC<JobTableProps> = ({ refreshKey = 0 }) => {
                             <Table.HeadCell>Salary</Table.HeadCell>
                             <Table.HeadCell>Level</Table.HeadCell>
                             <Table.HeadCell>Active</Table.HeadCell>
-                            <Table.HeadCell>Created At</Table.HeadCell>
-                            <Table.HeadCell>Updated At</Table.HeadCell>
                             <Table.HeadCell></Table.HeadCell>
                         </Table.Head>
                         <Table.Body className="divide-y divide-border dark:divide-darkborder">
@@ -221,33 +219,18 @@ const JobTable: React.FC<JobTableProps> = ({ refreshKey = 0 }) => {
                                         </Badge>
                                     </Table.Cell>
                                     <Table.Cell>
-                                        {job.createAt ? new Date(job.createAt).toLocaleDateString() : "N/A"}
-                                    </Table.Cell>
-                                    <Table.Cell>
-                                        {job.updateAt ? new Date(job.updateAt).toLocaleDateString() : "N/A"}
-                                    </Table.Cell>
-                                    <Table.Cell className="relative">
-                                        <Dropdown
-                                            label=""
-                                            className="z-[9999]"
-                                            dismissOnClick={false}
-                                            renderTrigger={() => (
-                                                <span className="h-9 w-9 flex justify-center items-center rounded-full hover:bg-lightprimary hover:text-primary cursor-pointer">
-                                                    <HiOutlineDotsVertical size={22} />
-                                                </span>
-                                            )}
-                                        >
+                                        <div className="flex justify-center items-center">
                                             {tableActionData.map((item, index) => (
-                                                <Dropdown.Item
+                                                <button
                                                     key={index}
-                                                    className="flex gap-3 z-[9999]"
                                                     onClick={() => item.onClick?.(job)}
+                                                    className="p-2 rounded-full hover:bg-lightprimary hover:text-primary transition-colors"
+                                                    title={item.listtitle}
                                                 >
                                                     <Icon icon={item.icon} height={18} />
-                                                    <span>{item.listtitle}</span>
-                                                </Dropdown.Item>
+                                                </button>
                                             ))}
-                                        </Dropdown>
+                                        </div>
                                     </Table.Cell>
                                 </Table.Row>
                             ))}

@@ -225,23 +225,18 @@ const UserTable: React.FC<UserTableProps> = ({ refreshKey = 0 }) => {
                         : "N/A"}
                     </Table.Cell>
                     <Table.Cell>
-                      <Dropdown
-                        label=""
-                        dismissOnClick={false}
-                        placement="bottom-end"
-                        renderTrigger={() => (
-                          <span className="h-9 w-9 flex justify-center items-center rounded-full hover:bg-lightprimary hover:text-primary cursor-pointer">
-                            <HiOutlineDotsVertical size={22} />
-                          </span>
-                        )}
-                      >
+                      <div className="flex justify-center items-center">
                         {tableActionData.map((item, index) => (
-                          <Dropdown.Item key={index} className="flex gap-3" onClick={() => item.onClick?.(user)}>
+                          <button
+                            key={index}
+                            onClick={() => item.onClick?.(user)}
+                            className="p-2 rounded-full hover:bg-lightprimary hover:text-primary transition-colors"
+                            title={item.listtitle}
+                          >
                             <Icon icon={item.icon} height={18} />
-                            <span>{item.listtitle}</span>
-                          </Dropdown.Item>
+                          </button>
                         ))}
-                      </Dropdown>
+                      </div>
                     </Table.Cell>
                   </Table.Row>
                 ))

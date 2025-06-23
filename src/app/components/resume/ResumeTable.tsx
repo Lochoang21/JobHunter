@@ -8,6 +8,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Resume, ResumeResponse, ResumeStatusEnum } from "@/types/resume";
 import useDebounce from "@/app/hooks/useDebounce";
 import UpdateResume from "./UpdateResume";
+import ResumeDetailModal from "./ResumeDetailModal";
 
 // Custom event for refreshing the table
 const refreshTableEvent = new Event("refreshResumeTable");
@@ -368,92 +369,16 @@ const ResumeTable: React.FC<ResumeTableProps> = ({ refreshKey = 0 }) => {
             )}
 
             {/* Detail Modal */}
-            <Modal show={isDetailModalOpen} onClose={() => setIsDetailModalOpen(false)} size="lg">
-                <Modal.Header>
-                    Resume Details - #{selectedResume?.id}
-                </Modal.Header>
-                <Modal.Body>
-                    {selectedResume && (
-                        <div className="space-y-4">
-                            {updateError && (
-                                <Alert color="failure">
-                                    <span>{updateError}</span>
-                                </Alert>
-                            )}
-                            {updateSuccess && (
-                                <Alert color="success">
-                                    <span>{updateSuccess}</span>
-                                </Alert>
-                            )}
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <h4 className="font-semibold text-gray-900">Applicant Information</h4>
-                                    <p><strong>Name:</strong> {selectedResume.user.name}</p>
-                                    <p><strong>Email:</strong> {selectedResume.email}</p>
-                                    <p><strong>User ID:</strong> {selectedResume.user.id}</p>
-                                </div>
-                                <div>
-                                    <h4 className="font-semibold text-gray-900">Job Information</h4>
-                                    <p><strong>Job:</strong> {selectedResume.job.name}</p>
-                                    <p><strong>Company:</strong> {selectedResume.companyName}</p>
-                                    <p><strong>Job ID:</strong> {selectedResume.job.id}</p>
-                                </div>
-                            </div>
-
-                            <div>
-                                <h4 className="font-semibold text-gray-900">Resume File</h4>
-                                <p><strong>File:</strong> {selectedResume.url}</p>
-                                <a
-                                    href={`http://localhost:8080/storage/resumes/${selectedResume.url}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 hover:text-blue-800 underline"
-                                >
-                                    Download Resume
-                                </a>
-                            </div>
-
-                            <div>
-                                <h4 className="font-semibold text-gray-900">Timeline</h4>
-                                <p><strong>Applied:</strong> {formatDate(selectedResume.createAt)}</p>
-                                <p><strong>Last Updated:</strong> {formatDate(selectedResume.updateAt)}</p>
-                                <p><strong>Created By:</strong> {selectedResume.createBy}</p>
-                                {selectedResume.updateBy && (
-                                    <p><strong>Updated By:</strong> {selectedResume.updateBy}</p>
-                                )}
-                            </div>
-                        </div>
-                    )}
-                </Modal.Body>
-                <Modal.Footer>
-                    <div className="flex space-x-2">
-                        {selectedResume?.status === ResumeStatusEnum.PENDING && (
-                            <>
-                                <Button
-                                    color="success"
-                                    size="sm"
-                                    onClick={() => handleStatusUpdate(selectedResume.id, ResumeStatusEnum.APPROVED)}
-                                    disabled={loading}
-                                >
-                                    Approve
-                                </Button>
-                                <Button
-                                    color="failure"
-                                    size="sm"
-                                    onClick={() => handleStatusUpdate(selectedResume.id, ResumeStatusEnum.REJECTED)}
-                                    disabled={loading}
-                                >
-                                    Reject
-                                </Button>
-                            </>
-                        )}
-                        <Button color="gray" onClick={() => setIsDetailModalOpen(false)}>
-                            Close
-                        </Button>
-                    </div>
-                </Modal.Footer>
-            </Modal>
+            <ResumeDetailModal
+                isOpen={isDetailModalOpen}
+                onClose={() => setIsDetailModalOpen(false)}
+                resume={selectedResume}
+                loading={loading}
+                updateError={updateError}
+                updateSuccess={updateSuccess}
+                handleStatusUpdate={handleStatusUpdate}
+                formatDate={formatDate}
+            />
 
             {/* Delete Confirmation Modal */}
             <Modal show={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} size="md">
