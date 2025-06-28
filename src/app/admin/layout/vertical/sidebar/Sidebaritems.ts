@@ -70,13 +70,13 @@ const SidebarContent: MenuItem[] = [
         name: "Permission",
         icon: "solar:shield-user-outline",
         id: uniqueId(),
-        url: "/admin/ui/company",
+        url: "/admin/ui/permission",
       },
       {
         name: "Role",
         icon: "solar:user-check-rounded-outline",
         id: uniqueId(),
-        url: "/admin/ui/company",
+        url: "/admin/ui/role",
       },
       {
         name: "Form",
