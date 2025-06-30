@@ -1,8 +1,10 @@
 "use client";
-import React, { useState, FormEvent, useCallback, useRef } from "react";
+import React, { useState, FormEvent, useCallback, useRef, useEffect } from "react";
 import { Modal, Button, TextInput, Select, Label, Alert } from "flowbite-react";
 import api from "@/services/api";
 import { GenderEnum, CreateUserDTO, CreateUserResponse } from "@/types/user";
+import { Company } from "@/types/company";
+import { Role } from "@/types/role";
 
 // Interface cho props nếu cần
 interface CreateUserProps {
@@ -27,25 +29,61 @@ const VALIDATION_RULES: Record<string, ValidationRule> = {
 } as const;
 
 // Initial form state
-const INITIAL_FORM_STATE: CreateUserDTO = {
+const INITIAL_FORM_STATE: CreateUserDTO & { company?: { id: number } | null; role?: { id: number } | null } = {
   name: "",
   email: "",
   password: "",
   address: "",
   gender: GenderEnum.MALE,
   age: 0,
+  company: null,
+  role: null,
 };
 
 const CreateUser: React.FC<CreateUserProps> = ({ onUserCreated }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [formData, setFormData] = useState<CreateUserDTO>(INITIAL_FORM_STATE);
+  const [formData, setFormData] = useState(INITIAL_FORM_STATE);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [loadingCompanies, setLoadingCompanies] = useState(false);
+  const [loadingRoles, setLoadingRoles] = useState(false);
 
   // Ref để focus vào field đầu tiên khi mở modal
   const firstInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch companies
+  const fetchCompanies = useCallback(async () => {
+    setLoadingCompanies(true);
+    try {
+      const response = await api.get("/companies", {
+        params: { page: 1, size: 1000 }, // Get all companies
+      });
+      setCompanies(response.data.data.result);
+    } catch (err) {
+      console.error("Failed to fetch companies:", err);
+    } finally {
+      setLoadingCompanies(false);
+    }
+  }, []);
+
+  // Fetch roles
+  const fetchRoles = useCallback(async () => {
+    setLoadingRoles(true);
+    try {
+      const response = await api.get("/roles", {
+        params: { page: 1, size: 1000 }, // Get all roles
+      });
+      setRoles(response.data.data.result);
+    } catch (err) {
+      console.error("Failed to fetch roles:", err);
+    } finally {
+      setLoadingRoles(false);
+    }
+  }, []);
 
   // Debounced validation
   const validateField = useCallback((name: string, value: any): string | null => {
@@ -87,7 +125,15 @@ const CreateUser: React.FC<CreateUserProps> = ({ onUserCreated }) => {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    const processedValue = name === "age" ? parseInt(value) || 0 : value;
+    let processedValue: any = value;
+
+    if (name === "age") {
+      processedValue = parseInt(value) || 0;
+    } else if (name === "company") {
+      processedValue = value ? { id: parseInt(value) } : null;
+    } else if (name === "role") {
+      processedValue = value ? { id: parseInt(value) } : null;
+    }
 
     setFormData((prev) => ({
       ...prev,
@@ -115,9 +161,11 @@ const CreateUser: React.FC<CreateUserProps> = ({ onUserCreated }) => {
     const errors: Record<string, string> = {};
 
     Object.entries(formData).forEach(([key, value]) => {
-      const error = validateField(key, value);
-      if (error) {
-        errors[key] = error;
+      if (key !== 'company' && key !== 'role') {
+        const error = validateField(key, value);
+        if (error) {
+          errors[key] = error;
+        }
       }
     });
 
@@ -150,6 +198,14 @@ const CreateUser: React.FC<CreateUserProps> = ({ onUserCreated }) => {
     }
   }, [loading, resetForm]);
 
+  // Fetch data when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchCompanies();
+      fetchRoles();
+    }
+  }, [isOpen, fetchCompanies, fetchRoles]);
+
   // Handle form submission
   const handleSubmit = useCallback(async (e: FormEvent) => {
     e.preventDefault();
@@ -162,7 +218,18 @@ const CreateUser: React.FC<CreateUserProps> = ({ onUserCreated }) => {
 
     setLoading(true);
     try {
-      const response = await api.post<CreateUserResponse>("/users", formData);
+      const payload = {
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+        address: formData.address.trim(),
+        gender: formData.gender,
+        age: formData.age,
+        company: formData.company,
+        role: formData.role,
+      };
+
+      const response = await api.post<CreateUserResponse>("/users", payload);
       setSuccess(response.data.message);
 
       // Callback để parent component xử lý
@@ -198,7 +265,7 @@ const CreateUser: React.FC<CreateUserProps> = ({ onUserCreated }) => {
       <Modal
         show={isOpen}
         onClose={handleCloseModal}
-        size="lg"
+        size="3xl"
         dismissible={!loading}
       >
         <Modal.Header>Create New User</Modal.Header>
@@ -267,38 +334,84 @@ const CreateUser: React.FC<CreateUserProps> = ({ onUserCreated }) => {
               />
             </div>
 
-            <div>
-              <Label htmlFor="gender" value="Gender *" />
-              <Select
-                id="gender"
-                name="gender"
-                value={formData.gender}
-                onChange={handleChange}
-                required
-                disabled={loading}
-              >
-                <option value={GenderEnum.MALE}>Male</option>
-                <option value={GenderEnum.FEMALE}>Female</option>
-                <option value={GenderEnum.OTHER}>Other</option>
-              </Select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="gender" value="Gender *" />
+                <Select
+                  id="gender"
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleChange}
+                  required
+                  disabled={loading}
+                >
+                  <option value={GenderEnum.MALE}>Male</option>
+                  <option value={GenderEnum.FEMALE}>Female</option>
+                  <option value={GenderEnum.OTHER}>Other</option>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="age" value="Age *" />
+                <TextInput
+                  id="age"
+                  name="age"
+                  type="number"
+                  min="1"
+                  max="120"
+                  value={formData.age === 0 ? "" : formData.age.toString()}
+                  onChange={handleChange}
+                  placeholder="Enter age (1-120)"
+                  required
+                  color={fieldErrors.age ? "failure" : undefined}
+                  helperText={fieldErrors.age}
+                  disabled={loading}
+                />
+              </div>
             </div>
 
-            <div>
-              <Label htmlFor="age" value="Age *" />
-              <TextInput
-                id="age"
-                name="age"
-                type="number"
-                min="1"
-                max="120"
-                value={formData.age === 0 ? "" : formData.age.toString()}
-                onChange={handleChange}
-                placeholder="Enter age (1-120)"
-                required
-                color={fieldErrors.age ? "failure" : undefined}
-                helperText={fieldErrors.age}
-                disabled={loading}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="company" value="Company" />
+                <Select
+                  id="company"
+                  name="company"
+                  value={formData.company?.id?.toString() || ""}
+                  onChange={handleChange}
+                  disabled={loading || loadingCompanies}
+                >
+                  <option value="">Select Company (Optional)</option>
+                  {companies.map((company) => (
+                    <option key={company.id} value={company.id}>
+                      {company.name}
+                    </option>
+                  ))}
+                </Select>
+                {loadingCompanies && (
+                  <div className="text-sm text-gray-500 mt-1">Loading companies...</div>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="role" value="Role" />
+                <Select
+                  id="role"
+                  name="role"
+                  value={formData.role?.id?.toString() || ""}
+                  onChange={handleChange}
+                  disabled={loading || loadingRoles}
+                >
+                  <option value="">Select Role (Optional)</option>
+                  {roles.map((role) => (
+                    <option key={role.id} value={role.id}>
+                      {role.name}
+                    </option>
+                  ))}
+                </Select>
+                {loadingRoles && (
+                  <div className="text-sm text-gray-500 mt-1">Loading roles...</div>
+                )}
+              </div>
             </div>
 
             {error && (

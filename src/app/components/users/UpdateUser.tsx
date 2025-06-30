@@ -3,6 +3,8 @@ import React, { useState, useEffect, FormEvent, useCallback } from "react";
 import { Modal, Button, TextInput, Select, Label, Alert } from "flowbite-react";
 import api from "@/services/api";
 import { GenderEnum, UpdateUserDTO, UpdateUserResponse, User } from "@/types/user";
+import { Company } from "@/types/company";
+import { Role } from "@/types/role";
 
 // Custom event for refreshing the table
 const refreshTableEvent = new Event("refreshUserTable");
@@ -44,6 +46,40 @@ const UpdateUser: React.FC<UpdateUserProps> = ({ user, isOpen, onClose }) => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [loadingCompanies, setLoadingCompanies] = useState(false);
+  const [loadingRoles, setLoadingRoles] = useState(false);
+
+  // Fetch companies
+  const fetchCompanies = useCallback(async () => {
+    setLoadingCompanies(true);
+    try {
+      const response = await api.get("/companies", {
+        params: { page: 1, size: 1000 }, // Get all companies
+      });
+      setCompanies(response.data.data.result);
+    } catch (err) {
+      console.error("Failed to fetch companies:", err);
+    } finally {
+      setLoadingCompanies(false);
+    }
+  }, []);
+
+  // Fetch roles
+  const fetchRoles = useCallback(async () => {
+    setLoadingRoles(true);
+    try {
+      const response = await api.get("/roles", {
+        params: { page: 1, size: 1000 }, // Get all roles
+      });
+      setRoles(response.data.data.result);
+    } catch (err) {
+      console.error("Failed to fetch roles:", err);
+    } finally {
+      setLoadingRoles(false);
+    }
+  }, []);
 
   // Pre-fill form with user data when user changes
   useEffect(() => {
@@ -62,6 +98,14 @@ const UpdateUser: React.FC<UpdateUserProps> = ({ user, isOpen, onClose }) => {
       setFieldErrors({});
     }
   }, [user]);
+
+  // Fetch data when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchCompanies();
+      fetchRoles();
+    }
+  }, [isOpen, fetchCompanies, fetchRoles]);
 
   // Validate field
   const validateField = useCallback((name: string, value: any): string | null => {
@@ -99,7 +143,15 @@ const UpdateUser: React.FC<UpdateUserProps> = ({ user, isOpen, onClose }) => {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    const processedValue = name === "age" ? parseInt(value) || 0 : value;
+    let processedValue: any = value;
+
+    if (name === "age") {
+      processedValue = parseInt(value) || 0;
+    } else if (name === "company") {
+      processedValue = value ? { id: parseInt(value) } : null;
+    } else if (name === "role") {
+      processedValue = value ? { id: parseInt(value) } : null;
+    }
 
     setFormData((prev) => ({
       ...prev,
@@ -222,37 +274,82 @@ const UpdateUser: React.FC<UpdateUserProps> = ({ user, isOpen, onClose }) => {
               disabled={loading}
             />
           </div>
-          <div>
-            <Label htmlFor="gender" value="Gender *" />
-            <Select
-              id="gender"
-              name="gender"
-              value={formData.gender}
-              onChange={handleChange}
-              required
-              disabled={loading}
-            >
-              <option value={GenderEnum.MALE}>Male</option>
-              <option value={GenderEnum.FEMALE}>Female</option>
-              <option value={GenderEnum.OTHER}>Other</option>
-            </Select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="gender" value="Gender *" />
+              <Select
+                id="gender"
+                name="gender"
+                value={formData.gender}
+                onChange={handleChange}
+                required
+                disabled={loading}
+              >
+                <option value={GenderEnum.MALE}>Male</option>
+                <option value={GenderEnum.FEMALE}>Female</option>
+                <option value={GenderEnum.OTHER}>Other</option>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="age" value="Age *" />
+              <TextInput
+                id="age"
+                name="age"
+                type="number"
+                min="1"
+                max="120"
+                value={formData.age === 0 ? "" : formData.age}
+                onChange={handleChange}
+                placeholder="Enter age (1-120)"
+                required
+                color={fieldErrors.age ? "failure" : undefined}
+                helperText={fieldErrors.age}
+                disabled={loading}
+              />
+            </div>
           </div>
-          <div>
-            <Label htmlFor="age" value="Age *" />
-            <TextInput
-              id="age"
-              name="age"
-              type="number"
-              min="1"
-              max="120"
-              value={formData.age === 0 ? "" : formData.age}
-              onChange={handleChange}
-              placeholder="Enter age (1-120)"
-              required
-              color={fieldErrors.age ? "failure" : undefined}
-              helperText={fieldErrors.age}
-              disabled={loading}
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="company" value="Company" />
+              <Select
+                id="company"
+                name="company"
+                value={formData.company?.id?.toString() || ""}
+                onChange={handleChange}
+                disabled={loading || loadingCompanies}
+              >
+                <option value="">Select Company (Optional)</option>
+                {companies.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </Select>
+              {loadingCompanies && (
+                <div className="text-sm text-gray-500 mt-1">Loading companies...</div>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="role" value="Role" />
+              <Select
+                id="role"
+                name="role"
+                value={formData.role?.id?.toString() || ""}
+                onChange={handleChange}
+                disabled={loading || loadingRoles}
+              >
+                <option value="">Select Role (Optional)</option>
+                {roles.map((role) => (
+                  <option key={role.id} value={role.id}>
+                    {role.name}
+                  </option>
+                ))}
+              </Select>
+              {loadingRoles && (
+                <div className="text-sm text-gray-500 mt-1">Loading roles...</div>
+              )}
+            </div>
           </div>
           {error && (
             <Alert color="failure" className="mt-4">

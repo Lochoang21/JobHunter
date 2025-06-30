@@ -1,11 +1,13 @@
-import React from 'react'
+"use client";
+import React from 'react';
+import RoleTable from '@/app/components/roles/RoleTable';
 
 const RolePage = () => {
     return (
         <div className="container mx-auto p-4">
-            Role Page
+            <RoleTable />
         </div>
-    )
-}
+    );
+};
 
-export default RolePage
+export default RolePage;
