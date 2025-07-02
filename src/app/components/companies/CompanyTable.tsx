@@ -9,6 +9,8 @@ import CompanyDetail from "@/app/components/companies/CompanyDetail"
 import UpdateCompany from "./UpdateCompany";
 import CreateCompany from "@/app/components/companies/CreateCompany";
 import useDebounce from "@/app/hooks/useDebounce";
+import { useAuth } from '@/contexts/AuthContext';
+import { MODULES, PERMISSION_ACTIONS } from '@/utils/permissions';
 
 // Custom event for refreshing the table
 const refreshTableEvent = new Event("refreshCompanyTable");
@@ -32,6 +34,9 @@ const CompanyTable: React.FC<CompanyTableProps> = ({ refreshKey = 0 }) => {
   const [search, setSearch] = useState<SearchState>({ field: "name", value: "" });
   const [searchField, setSearchField] = useState("name");
   const debouncedSearch = useDebounce(search, 500);
+
+  const { getModulePermissions, hasPermission } = useAuth();
+  const perms = getModulePermissions(MODULES.COMPANIES);
   const [internalRefreshKey, setInternalRefreshKey] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -108,35 +113,54 @@ const CompanyTable: React.FC<CompanyTableProps> = ({ refreshKey = 0 }) => {
     }
   };
 
-  // Table action items (Edit, Delete)
-  const tableActionData = [
-    {
-      icon: "solar:eye-linear", listtitle: "View", onClick: (company: Company) => {
-        setSelectedCompany(company);
-        setIsDrawerOpen(true);
-      },
-    },
-    {
-      icon: "solar:pen-new-square-broken", listtitle: "Edit", onClick: (company: Company) => {
-        setSelectedCompany(company);
-        setIsUpdateModalOpen(true);
-      },
-    },
-    {
-      icon: "solar:trash-bin-minimalistic-outline", listtitle: "Delete", onClick: (company: Company) => {
-        setSelectedCompany(company);
-        setIsDeleteModalOpen(true);
-      },
-    },
-  ];
+  // Table action items (View, Edit, Delete) với phân quyền mới
+  const getTableActions = (company: Company) => {
+    const actions = [];
+    // View action - cần quyền read
+    if (perms.canRead) {
+      actions.push({
+        icon: "solar:eye-linear",
+        listtitle: "View",
+        onClick: () => {
+          setSelectedCompany(company);
+          setIsDrawerOpen(true);
+        },
+      });
+    }
+    // Edit action - cần quyền update
+    if (perms.canUpdate) {
+      actions.push({
+        icon: "solar:pen-new-square-broken",
+        listtitle: "Edit",
+        onClick: () => {
+          setSelectedCompany(company);
+          setIsUpdateModalOpen(true);
+        },
+      });
+    }
+    // Delete action - cần quyền delete
+    if (perms.canDelete) {
+      actions.push({
+        icon: "solar:trash-bin-minimalistic-outline",
+        listtitle: "Delete",
+        onClick: () => {
+          setSelectedCompany(company);
+          setIsDeleteModalOpen(true);
+        },
+      });
+    }
+    return actions;
+  };
 
   return (
     <div className="rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray p-6 relative w-full break-words">
       <div className="flex justify-between items-center mb-4">
         <h5 className="card-title">Companies</h5>
-        <Button color="primary" onClick={() => setIsCreateModalOpen(true)}>
-          Create Company
-        </Button>
+        {perms.canCreate && (
+          <Button color="primary" onClick={() => setIsCreateModalOpen(true)}>
+            Create Company
+          </Button>
+        )}
       </div>
 
       {/* Search Bar */}
@@ -199,50 +223,57 @@ const CompanyTable: React.FC<CompanyTableProps> = ({ refreshKey = 0 }) => {
               {companies.length === 0 && (
                 <Table.Row>
                   <Table.Cell colSpan={9} className="text-center">
-                    No users found
+                    No companies found
                   </Table.Cell>
                 </Table.Row>
               )}
-              {companies.map((company) => (
-                <Table.Row key={company.id}>
-                  <Table.Cell className="whitespace-nowrap ps-6">
-                    {company.id}
-                  </Table.Cell>
-                  <Table.Cell>{company.name || "N/A"}</Table.Cell>
-                  <Table.Cell>{company.address || "N/A"}</Table.Cell>
-                  {/* <Table.Cell>
-                    {company.description
-                      ? company.description.length > 50
-                        ? `${company.description.substring(0, 50)}...`
-                        : company.description
-                      : "N/A"}
-                  </Table.Cell> */}
-                  <Table.Cell>
-                    {company.createAt
-                      ? new Date(company.createAt).toLocaleDateString()
-                      : "N/A"}
-                  </Table.Cell>
-                  <Table.Cell>
-                    {company.updateAt
-                      ? new Date(company.updateAt).toLocaleDateString()
-                      : "N/A"}
-                  </Table.Cell>
-                  <Table.Cell>
+              {companies.map((company) => {
+                const tableActions = getTableActions(company);
+                return (
+                  <Table.Row key={company.id}>
+                    <Table.Cell className="whitespace-nowrap ps-6">
+                      {company.id}
+                    </Table.Cell>
+                    <Table.Cell>{company.name || "N/A"}</Table.Cell>
+                    <Table.Cell>{company.address || "N/A"}</Table.Cell>
+                    {/* <Table.Cell>
+                      {company.description
+                        ? company.description.length > 50
+                          ? `${company.description.substring(0, 50)}...`
+                          : company.description
+                        : "N/A"}
+                    </Table.Cell> */}
+                    <Table.Cell>
+                      {company.createAt
+                        ? new Date(company.createAt).toLocaleDateString()
+                        : "N/A"}
+                    </Table.Cell>
+                    <Table.Cell>
+                      {company.updateAt
+                        ? new Date(company.updateAt).toLocaleDateString()
+                        : "N/A"}
+                    </Table.Cell>
+                    <Table.Cell>
                       <div className="flex justify-center items-center">
-                        {tableActionData.map((item, index) => (
-                          <button
-                            key={index}
-                            onClick={() => item.onClick?.(company)}
-                            className="p-2 rounded-full hover:bg-lightprimary hover:text-primary transition-colors"
-                            title={item.listtitle}
-                          >
-                            <Icon icon={item.icon} height={18} />
-                          </button>
-                        ))}
+                        {tableActions.length > 0 ? (
+                          tableActions.map((item, index) => (
+                            <button
+                              key={index}
+                              onClick={() => item.onClick?.()}
+                              className="p-2 rounded-full hover:bg-lightprimary hover:text-primary transition-colors"
+                              title={item.listtitle}
+                            >
+                              <Icon icon={item.icon} height={18} />
+                            </button>
+                          ))
+                        ) : (
+                          <span className="text-gray-400 text-sm">No actions available</span>
+                        )}
                       </div>
                     </Table.Cell>
-                </Table.Row>
-              ))}
+                  </Table.Row>
+                );
+              })}
             </Table.Body>
           </Table>
         </div>

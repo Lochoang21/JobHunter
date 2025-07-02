@@ -20,6 +20,7 @@ const page = () => {
         <div className="lg:col-span-12 col-span-12">
           <DailyActivity />
         </div>
+
         <div className="col-span-12 text-center">
           <p className="text-base">
             Design and Developed by{" "}

@@ -4,11 +4,20 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/services/auth.service';
 import { User } from '@/types/auth';
+import { hasPermission, getModulePermissions } from '@/utils/permissions';
 
 interface AuthContextType {
     user: User | null;
     loading: boolean;
     error: string | null;
+    permissions: any[];
+    hasPermission: (module: string, action: string) => boolean;
+    getModulePermissions: (module: string) => {
+        canCreate: boolean;
+        canRead: boolean;
+        canUpdate: boolean;
+        canDelete: boolean;
+    };
     login: (username: string, password: string) => Promise<void>;
     register: (data: any) => Promise<void>;
     logout: () => Promise<void>;
@@ -43,7 +52,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
             setError(null);
             const response = await authService.login({ username, password });
-            console.log("User data after login:", response.data.user); // Debug log
             setUser(response.data.user);
             router.push('/');
         } catch (err: any) {
@@ -73,12 +81,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const permissions = user?.role?.permissions || [];
+
     return (
         <AuthContext.Provider
             value={{
                 user,
                 loading,
                 error,
+                permissions,
+                hasPermission: (module, action) => hasPermission(permissions, module, action),
+                getModulePermissions: (module) => getModulePermissions(permissions, module),
                 login,
                 register,
                 logout,

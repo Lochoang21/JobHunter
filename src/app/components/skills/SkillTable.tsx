@@ -8,6 +8,8 @@ import { Skill, SkillResponse, DeleteSkillResponse } from "@/types/skill";
 import useDebounce from "@/app/hooks/useDebounce";
 import CreateSkill from "./CreateSkill";
 import UpdateSkill from "./UpdateSkill";
+import { useAuth } from '@/contexts/AuthContext';
+import { MODULES, PERMISSION_ACTIONS } from '@/utils/permissions';
 
 // Custom event for refreshing the table
 const refreshTableEvent = new Event("refreshSkillTable");
@@ -41,6 +43,9 @@ const SkillTable: React.FC<SkillTableProps> = ({ refreshKey = 0 }) => {
     const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
+
+    const { getModulePermissions, hasPermission } = useAuth();
+    const perms = getModulePermissions(MODULES.SKILLS);
 
     // Fetch skills from API
     const fetchSkills = async () => {
@@ -109,29 +114,43 @@ const SkillTable: React.FC<SkillTableProps> = ({ refreshKey = 0 }) => {
         }
     };
 
-    // Table action items (Edit, Delete)
-    const tableActionData = [
-        {
-            icon: "solar:pen-new-square-broken", listtitle: "Edit", onClick: (skill: Skill) => {
-                setSelectedSkill(skill);
-                setIsUpdateModalOpen(true);
-            },
-        },
-        {
-            icon: "solar:trash-bin-minimalistic-outline", listtitle: "Delete", onClick: (skill: Skill) => {
-                setSelectedSkill(skill);
-                setIsDeleteModalOpen(true);
-            },
-        },
-    ];
+    // Table action items (Edit, Delete) với phân quyền mới
+    const getTableActions = (skill: Skill) => {
+        const actions = [];
+        // Edit action - cần quyền update
+        if (perms.canUpdate) {
+            actions.push({
+                icon: "solar:pen-new-square-broken",
+                listtitle: "Edit",
+                onClick: () => {
+                    setSelectedSkill(skill);
+                    setIsUpdateModalOpen(true);
+                },
+            });
+        }
+        // Delete action - cần quyền delete
+        if (perms.canDelete) {
+            actions.push({
+                icon: "solar:trash-bin-minimalistic-outline",
+                listtitle: "Delete",
+                onClick: () => {
+                    setSelectedSkill(skill);
+                    setIsDeleteModalOpen(true);
+                },
+            });
+        }
+        return actions;
+    };
 
     return (
         <div className="rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray p-6 relative w-full break-words">
             <div className="flex justify-between items-center mb-4">
                 <h5 className="card-title">Skills</h5>
-                <Button color="primary" onClick={() => setIsCreateModalOpen(true)}>
-                    Create Skill
-                </Button>
+                {perms.canCreate && (
+                    <Button color="primary" onClick={() => setIsCreateModalOpen(true)}>
+                        Create Skill
+                    </Button>
+                )}
             </div>
 
             {/* Search Bar */}
@@ -204,42 +223,49 @@ const SkillTable: React.FC<SkillTableProps> = ({ refreshKey = 0 }) => {
                                     </Table.Cell>
                                 </Table.Row>
                             ) : (
-                                skills.map((skill) => (
-                                    <Table.Row key={skill.id}>
-                                        <Table.Cell className="whitespace-nowrap ps-6">
-                                            {skill.id}
-                                        </Table.Cell>
-                                        <Table.Cell>
-                                            <Badge color="warning" className="text-sm">
-                                                {skill.name}
-                                            </Badge>
-                                        </Table.Cell>
-                                        <Table.Cell>
-                                            {skill.createAt
-                                                ? new Date(skill.createAt).toLocaleDateString()
-                                                : "N/A"}
-                                        </Table.Cell>
-                                        <Table.Cell>
-                                            {skill.updateAt
-                                                ? new Date(skill.updateAt).toLocaleDateString()
-                                                : "N/A"}
-                                        </Table.Cell>
-                                        <Table.Cell>
-                                        <div className="flex justify-center items-center">
-                                            {tableActionData.map((item, index) => (
-                                                <button
-                                                    key={index}
-                                                    onClick={() => item.onClick?.(skill)}
-                                                    className="p-2 rounded-full hover:bg-lightprimary hover:text-primary transition-colors"
-                                                    title={item.listtitle}
-                                                >
-                                                    <Icon icon={item.icon} height={18} />
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </Table.Cell>
-                                    </Table.Row>
-                                ))
+                                skills.map((skill) => {
+                                    const tableActions = getTableActions(skill);
+                                    return (
+                                        <Table.Row key={skill.id}>
+                                            <Table.Cell className="whitespace-nowrap ps-6">
+                                                {skill.id}
+                                            </Table.Cell>
+                                            <Table.Cell>
+                                                <Badge color="warning" className="text-sm">
+                                                    {skill.name}
+                                                </Badge>
+                                            </Table.Cell>
+                                            <Table.Cell>
+                                                {skill.createAt
+                                                    ? new Date(skill.createAt).toLocaleDateString()
+                                                    : "N/A"}
+                                            </Table.Cell>
+                                            <Table.Cell>
+                                                {skill.updateAt
+                                                    ? new Date(skill.updateAt).toLocaleDateString()
+                                                    : "N/A"}
+                                            </Table.Cell>
+                                            <Table.Cell>
+                                                <div className="flex justify-center items-center">
+                                                    {tableActions.length > 0 ? (
+                                                        tableActions.map((item, index) => (
+                                                            <button
+                                                                key={index}
+                                                                onClick={() => item.onClick()}
+                                                                className="p-2 rounded-full hover:bg-lightprimary hover:text-primary transition-colors"
+                                                                title={item.listtitle}
+                                                            >
+                                                                <Icon icon={item.icon} height={18} />
+                                                            </button>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-gray-400 text-sm">No actions available</span>
+                                                    )}
+                                                </div>
+                                            </Table.Cell>
+                                        </Table.Row>
+                                    );
+                                })
                             )}
                         </Table.Body>
                     </Table>

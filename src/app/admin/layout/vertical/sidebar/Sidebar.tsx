@@ -8,8 +8,31 @@ import NavCollapse from "./NavCollapse";
 import SimpleBar from "simplebar-react";
 import FullLogo from "../../shared/logo/FullLogo";
 import { Icon } from "@iconify/react";
+import { useAuth } from "@/contexts/AuthContext";
+import { PERMISSION_ACTIONS } from "@/utils/permissions";
+import type { MenuItem, ChildItem } from "./Sidebaritems";
 
 const SidebarLayout = () => {
+  const { hasPermission, user } = useAuth();
+
+  const filterMenu = (items: MenuItem[]): MenuItem[] =>
+    items
+      .map((item: MenuItem) => ({
+        ...item,
+        children: item.children
+          ? item.children.filter((child: ChildItem) => {
+            if (child.module) {
+              return hasPermission(child.module.toUpperCase(), PERMISSION_ACTIONS.READ);
+            }
+            if (child.role) {
+              return user?.role?.name === child.role;
+            }
+            return true;
+          })
+          : [],
+      }))
+      .filter((item: MenuItem) => !item.children || item.children.length > 0);
+
   return (
     <>
       <div className="xl:block hidden">
@@ -25,7 +48,7 @@ const SidebarLayout = () => {
             <SimpleBar className="h-[calc(100vh_-_120px)]">
               <Sidebar.Items className="px-6">
                 <Sidebar.ItemGroup className="sidebar-nav">
-                  {SidebarContent.map((item, index) => (
+                  {filterMenu(SidebarContent).map((item, index) => (
                     <React.Fragment key={index}>
                       <h5 className="text-link text-xs caption">
                         <span className="hide-menu">{item.heading}</span>

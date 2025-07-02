@@ -27,14 +27,16 @@ export const authService = {
         if (response.data.data.access_token) {
             // Store access token in cookie
             Cookies.set('access_token', response.data.data.access_token, COOKIE_OPTIONS);
-            
+
             // Store role name in a separate cookie for middleware
             const userData = response.data.data.user;
             if (userData.role && userData.role.name) {
-                console.log("Setting role_name cookie:", userData.role.name);
                 Cookies.set('role_name', userData.role.name, COOKIE_OPTIONS);
             }
-            
+
+            // Store full user data in cookie for permission checking
+            Cookies.set('user_data', JSON.stringify(userData), COOKIE_OPTIONS);
+
             // Tùy chọn: Lưu user data đầy đủ vào localStorage nếu cần
             localStorage.setItem('user_data', JSON.stringify(userData));
         }
@@ -55,6 +57,7 @@ export const authService = {
             // Always remove cookies
             Cookies.remove('access_token');
             Cookies.remove('role_name');
+            Cookies.remove('user_data');
             localStorage.removeItem('user_data');
         }
     },
@@ -63,7 +66,6 @@ export const authService = {
         const response = await api.get<AccountResponse>('/auth/account');
         // Update user data in cookie with full user object
         const userData = response.data.data.user;
-        console.log("Updating user data in cookie from getAccount:", userData);
         Cookies.set('user_data', JSON.stringify(userData), COOKIE_OPTIONS);
         return response.data;
     },
@@ -71,21 +73,47 @@ export const authService = {
     getUserData(): User | null {
         try {
             const userData = Cookies.get('user_data');
-            console.log("Getting user data from cookie, exists:", !!userData);
             return userData ? JSON.parse(userData) : null;
         } catch (error) {
-            console.error("Error parsing user data:", error);
             // Clear invalid data
             Cookies.remove('user_data');
             return null;
         }
     },
 
-    // Optional: Check for specific permissions
+    // Kiểm tra permission cụ thể
     hasPermission(permissionName: string): boolean {
         const user = this.getUserData();
         return !!user?.role?.permissions?.some(
             permission => permission.name === permissionName
         );
+    },
+
+    // Kiểm tra permission theo API path và method
+    hasApiPermission(apiPath: string, method: string = 'GET'): boolean {
+        const user = this.getUserData();
+        return !!user?.role?.permissions?.some(
+            permission =>
+                permission.apiPath === apiPath &&
+                permission.method.toUpperCase() === method.toUpperCase()
+        );
+    },
+
+    // Kiểm tra role cụ thể
+    hasRole(roleName: string): boolean {
+        const user = this.getUserData();
+        return user?.role?.name === roleName;
+    },
+
+    // Lấy danh sách permissions của user
+    getUserPermissions(): any[] {
+        const user = this.getUserData();
+        return user?.role?.permissions || [];
+    },
+
+    // Lấy role của user
+    getUserRole(): string | null {
+        const user = this.getUserData();
+        return user?.role?.name || null;
     }
 };

@@ -8,6 +8,8 @@ import { User, ApiResponse, DeleteUserResponse } from "@/types/user";
 import UserDetail from "@/app/components/users/UserDetail"
 import UpdateUser from "./UpdateUser";
 import useDebounce from "@/app/hooks/useDebounce";
+import { useAuth } from '@/contexts/AuthContext';
+import { MODULES, PERMISSION_ACTIONS } from '@/utils/permissions';
 
 // Custom event for refreshing the table
 const refreshTableEvent = new Event("refreshUserTable");
@@ -30,6 +32,9 @@ const UserTable: React.FC<UserTableProps> = ({ refreshKey = 0 }) => {
   const [size, setSize] = useState(5);
   const [search, setSearch] = useState<SearchState>({ field: "name", value: "" });
   const [searchField, setSearchField] = useState("name");
+
+  const { getModulePermissions, hasPermission } = useAuth();
+  const perms = getModulePermissions(MODULES.USERS);
 
   // Chỉ debounce search value, không debounce cả object
   const debouncedSearchValue = useDebounce(search.value, 500);
@@ -109,31 +114,58 @@ const UserTable: React.FC<UserTableProps> = ({ refreshKey = 0 }) => {
     }
   };
 
-  // Table action items (Edit, Delete)
-  const tableActionData = [
-    {
-      icon: "solar:eye-linear", listtitle: "View", onClick: (user: User) => {
-        setSelectedUser(user);
-        setIsDrawerOpen(true);
-      },
-    },
-    {
-      icon: "solar:pen-new-square-broken", listtitle: "Edit", onClick: (user: User) => {
-        setSelectedUser(user);
-        setIsUpdateModalOpen(true);
-      },
-    },
-    {
-      icon: "solar:trash-bin-minimalistic-outline", listtitle: "Delete", onClick: (user: User) => {
-        setSelectedUser(user);
-        setIsDeleteModalOpen(true);
-      },
-    },
-  ];
+  // Table action items (View, Edit, Delete) với phân quyền mới
+  const getTableActions = (user: User) => {
+    const actions = [];
+    // View action - cần quyền read
+    if (perms.canRead) {
+      actions.push({
+        icon: "solar:eye-linear",
+        listtitle: "View",
+        onClick: () => {
+          setSelectedUser(user);
+          setIsDrawerOpen(true);
+        },
+      });
+    }
+    // Edit action - cần quyền update
+    if (perms.canUpdate) {
+      actions.push({
+        icon: "solar:pen-new-square-broken",
+        listtitle: "Edit",
+        onClick: () => {
+          setSelectedUser(user);
+          setIsUpdateModalOpen(true);
+        },
+      });
+    }
+    // Delete action - cần quyền delete
+    if (perms.canDelete) {
+      actions.push({
+        icon: "solar:trash-bin-minimalistic-outline",
+        listtitle: "Delete",
+        onClick: () => {
+          setSelectedUser(user);
+          setIsDeleteModalOpen(true);
+        },
+      });
+    }
+    return actions;
+  };
 
   return (
     <div className="rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray p-6 relative w-full break-words">
-      <h5 className="card-title">Users</h5>
+      <div className="flex justify-between items-center mb-4">
+        <h5 className="card-title">Users</h5>
+        {/* Nút tạo user chỉ hiển thị nếu có quyền create */}
+      {perms.canCreate && (
+        <Button color="primary" className="mb-4" onClick={() => setIsUpdateModalOpen(true)}>
+          Create User
+        </Button>
+      )}
+      </div>
+
+      
 
       {/* Search Bar */}
       <form onSubmit={handleSearch} className="my-4 flex gap-4 items-center">
@@ -207,39 +239,46 @@ const UserTable: React.FC<UserTableProps> = ({ refreshKey = 0 }) => {
                   </Table.Cell>
                 </Table.Row>
               ) : (
-                users.map((user) => (
-                  <Table.Row key={user.id}>
-                    <Table.Cell className="whitespace-nowrap ps-6">
-                      {user.id}
-                    </Table.Cell>
-                    <Table.Cell>{user.email}</Table.Cell>
-                    <Table.Cell>{user.name || "N/A"}</Table.Cell>
-                    <Table.Cell>
-                      {user.createAt
-                        ? new Date(user.createAt).toLocaleDateString()
-                        : "N/A"}
-                    </Table.Cell>
-                    <Table.Cell>
-                      {user.updateAt
-                        ? new Date(user.updateAt).toLocaleDateString()
-                        : "N/A"}
-                    </Table.Cell>
-                    <Table.Cell>
-                      <div className="flex justify-center items-center">
-                        {tableActionData.map((item, index) => (
-                          <button
-                            key={index}
-                            onClick={() => item.onClick?.(user)}
-                            className="p-2 rounded-full hover:bg-lightprimary hover:text-primary transition-colors"
-                            title={item.listtitle}
-                          >
-                            <Icon icon={item.icon} height={18} />
-                          </button>
-                        ))}
-                      </div>
-                    </Table.Cell>
-                  </Table.Row>
-                ))
+                users.map((user) => {
+                  const tableActions = getTableActions(user);
+                  return (
+                    <Table.Row key={user.id}>
+                      <Table.Cell className="whitespace-nowrap ps-6">
+                        {user.id}
+                      </Table.Cell>
+                      <Table.Cell>{user.email}</Table.Cell>
+                      <Table.Cell>{user.name || "N/A"}</Table.Cell>
+                      <Table.Cell>
+                        {user.createAt
+                          ? new Date(user.createAt).toLocaleDateString()
+                          : "N/A"}
+                      </Table.Cell>
+                      <Table.Cell>
+                        {user.updateAt
+                          ? new Date(user.updateAt).toLocaleDateString()
+                          : "N/A"}
+                      </Table.Cell>
+                      <Table.Cell>
+                        <div className="flex justify-center items-center">
+                          {tableActions.length > 0 ? (
+                            tableActions.map((item, index) => (
+                              <button
+                                key={index}
+                                onClick={() => item.onClick?.()}
+                                className="p-2 rounded-full hover:bg-lightprimary hover:text-primary transition-colors"
+                                title={item.listtitle}
+                              >
+                                <Icon icon={item.icon} height={18} />
+                              </button>
+                            ))
+                          ) : (
+                            <span className="text-gray-400 text-sm">No actions available</span>
+                          )}
+                        </div>
+                      </Table.Cell>
+                    </Table.Row>
+                  );
+                })
               )}
             </Table.Body>
           </Table>

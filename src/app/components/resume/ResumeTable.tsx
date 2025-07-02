@@ -9,6 +9,8 @@ import { Resume, ResumeResponse, ResumeStatusEnum } from "@/types/resume";
 import useDebounce from "@/app/hooks/useDebounce";
 import UpdateResume from "./UpdateResume";
 import ResumeDetailModal from "./ResumeDetailModal";
+import { useAuth } from '@/contexts/AuthContext';
+import { MODULES, PERMISSION_ACTIONS } from '@/utils/permissions';
 
 // Custom event for refreshing the table
 const refreshTableEvent = new Event("refreshResumeTable");
@@ -46,6 +48,8 @@ const ResumeTable: React.FC<ResumeTableProps> = ({ refreshKey = 0 }) => {
     const [updateSuccess, setUpdateSuccess] = useState<string | null>(null);
 
     const { hasRole } = useCurrentUser();
+    const { getModulePermissions, hasPermission } = useAuth();
+    const perms = getModulePermissions(MODULES.RESUMES);
 
     // Fetch resumes from API
     const fetchResumes = async () => {
@@ -160,44 +164,54 @@ const ResumeTable: React.FC<ResumeTableProps> = ({ refreshKey = 0 }) => {
         });
     };
 
-    // Table action items (View, Edit Status, Delete)
-    const tableActionData = [
-        {
-            icon: "solar:eye-linear",
-            listtitle: "View",
-            onClick: (resume: Resume) => {
-                setSelectedResume(resume);
-                setIsDetailModalOpen(true);
-            },
-        },
-        ...(hasRole('SUPER_ADMIN') ? [
-            {
-                icon: "solar:trash-bin-minimalistic-outline",
-                listtitle: "Delete",
-                onClick: (resume: Resume) => {
+    // Table action items (View, Edit, Delete) với phân quyền mới
+    const getTableActions = (resume : Resume) => {
+        const actions = [];
+        // View action - cần quyền read
+        if (perms.canRead) {
+            actions.push({
+                icon: "solar:eye-linear",
+                listtitle: "View",
+                onClick: () => {
                     setSelectedResume(resume);
-                    setIsDeleteModalOpen(true);
+                    setIsDetailModalOpen(true);
                 },
-            },
-            {
-                icon: "solar:trash-bin-minimalistic-outline",
-                listtitle: "Update",
-                onClick: (resume: Resume) => {
+            });
+        }
+        // Edit action - cần quyền update
+        if (perms.canUpdate) {
+            actions.push({
+                icon: "solar:pen-new-square-broken",
+                listtitle: "Edit",
+                onClick: () => {
                     setSelectedResume(resume);
                     setIsUpdateModalOpen(true);
                 },
-            }
-        ] : [])
-
-    ];
+            });
+        }
+        // Delete action - cần quyền delete
+        if (perms.canDelete) {
+            actions.push({
+                icon: "solar:trash-bin-minimalistic-outline",
+                listtitle: "Delete",
+                onClick: () => {
+                    setSelectedResume(resume);
+                    setIsDeleteModalOpen(true);
+                },
+            });
+        }
+        return actions;
+    };
 
     return (
         <div className="rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray p-6 relative w-full break-words">
             <div className="flex justify-between items-center mb-4">
-                <h5 className="card-title">Resume Management</h5>
-                <div className="text-sm text-gray-600">
-                    Total: {meta.total} resumes
-                </div>
+                <h5 className="card-title">Resumes</h5>
+                {perms.canCreate && (
+                    <Button color="primary" onClick={() => setIsUpdateModalOpen(true)}>
+                        Create Resume
+                    </Button>
+                )}
             </div>
 
             {/* Search Bar */}
@@ -276,75 +290,54 @@ const ResumeTable: React.FC<ResumeTableProps> = ({ refreshKey = 0 }) => {
                                     </Table.Cell>
                                 </Table.Row>
                             ) : (
-                                resumes.map((resume) => (
-                                    <Table.Row key={resume.id}>
-                                        <Table.Cell className="whitespace-nowrap ps-6">
-                                            #{resume.id}
-                                        </Table.Cell>
-                                        <Table.Cell>
-                                            <div>
-                                                <div className="font-medium text-gray-900">{resume.user.name}</div>
-                                                <div className="text-sm text-gray-500">ID: {resume.user.id}</div>
-                                            </div>
-                                        </Table.Cell>
-                                        <Table.Cell className="text-gray-900">
-                                            {resume.email}
-                                        </Table.Cell>
-                                        <Table.Cell>
-                                            <div>
-                                                <div className="font-medium text-gray-900">{resume.job.name}</div>
-                                                <div className="text-sm text-gray-500">ID: {resume.job.id}</div>
-                                            </div>
-                                        </Table.Cell>
-                                        <Table.Cell className="text-gray-900">
-                                            {resume.companyName || 'N/A'}
-                                        </Table.Cell>
-                                        <Table.Cell>
-                                            {getStatusBadge(resume.status)}
-                                        </Table.Cell>
-                                        <Table.Cell className="text-gray-900">
-                                            {formatDate(resume.createAt)}
-                                        </Table.Cell>
-                                        <Table.Cell>
-                                            <div className="flex space-x-2">
-                                                <Button
-                                                    size="xs"
-                                                    color="light"
-                                                    onClick={() => {
-                                                        setSelectedResume(resume);
-                                                        setIsDetailModalOpen(true);
-                                                    }}
-                                                >
-                                                    <Icon icon="solar:eye-linear" height={16} />
-                                                </Button>
-                                                {hasRole('SUPER_ADMIN') && (
-                                                    <>
+                                resumes.map((resume) => {
+                                    const tableActions = getTableActions(resume);
+                                    return (
+                                        <Table.Row key={resume.id}>
+                                            <Table.Cell className="whitespace-nowrap ps-6">
+                                                #{resume.id}
+                                            </Table.Cell>
+                                            <Table.Cell>
+                                                <div>
+                                                    <div className="font-medium text-gray-900">{resume.user.name}</div>
+                                                    <div className="text-sm text-gray-500">ID: {resume.user.id}</div>
+                                                </div>
+                                            </Table.Cell>
+                                            <Table.Cell className="text-gray-900">
+                                                {resume.email}
+                                            </Table.Cell>
+                                            <Table.Cell>
+                                                <div>
+                                                    <div className="font-medium text-gray-900">{resume.job.name}</div>
+                                                    <div className="text-sm text-gray-500">ID: {resume.job.id}</div>
+                                                </div>
+                                            </Table.Cell>
+                                            <Table.Cell className="text-gray-900">
+                                                {resume.companyName || 'N/A'}
+                                            </Table.Cell>
+                                            <Table.Cell>
+                                                {getStatusBadge(resume.status)}
+                                            </Table.Cell>
+                                            <Table.Cell className="text-gray-900">
+                                                {formatDate(resume.createAt)}
+                                            </Table.Cell>
+                                            <Table.Cell>
+                                                <div className="flex space-x-2">
+                                                    {tableActions.map((action) => (
                                                         <Button
+                                                            key={action.listtitle}
                                                             size="xs"
-                                                            color="warning"
-                                                            onClick={() => {
-                                                                setSelectedResume(resume);
-                                                                setIsUpdateModalOpen(true);
-                                                            }}
+                                                            color="light"
+                                                            onClick={action.onClick}
                                                         >
-                                                            <Icon icon="solar:pen-new-square-broken" height={16} />
+                                                            <Icon icon={action.icon} height={16} />
                                                         </Button>
-                                                        <Button
-                                                            size="xs"
-                                                            color="failure"
-                                                            onClick={() => {
-                                                                setSelectedResume(resume);
-                                                                setIsDeleteModalOpen(true);
-                                                            }}
-                                                        >
-                                                            <Icon icon="solar:trash-bin-minimalistic-outline" height={16} />
-                                                        </Button>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </Table.Cell>
-                                    </Table.Row>
-                                ))
+                                                    ))}
+                                                </div>
+                                            </Table.Cell>
+                                        </Table.Row>
+                                    );
+                                })
                             )}
                         </Table.Body>
                     </Table>

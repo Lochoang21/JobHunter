@@ -8,6 +8,8 @@ import { Role, RoleResponse, DeleteRoleResponse } from "@/types/role";
 import useDebounce from "@/app/hooks/useDebounce";
 import CreateRole from "./CreateRole";
 import UpdateRole from "./UpdateRole";
+import { useAuth } from '@/contexts/AuthContext';
+import { MODULES, PERMISSION_ACTIONS } from '@/utils/permissions';
 
 // Custom event for refreshing the table
 const refreshTableEvent = new Event("refreshRoleTable");
@@ -41,6 +43,10 @@ const RoleTable: React.FC<RoleTableProps> = ({ refreshKey = 0 }) => {
     const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+    const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+    const { getModulePermissions, hasPermission } = useAuth();
+    const perms = getModulePermissions(MODULES.ROLES);
 
     // Fetch roles from API
     const fetchRoles = async () => {
@@ -114,29 +120,54 @@ const RoleTable: React.FC<RoleTableProps> = ({ refreshKey = 0 }) => {
         return active ? 'indigo' : 'failure';
     };
 
-    // Table action items (Edit, Delete)
-    const tableActionData = [
-        {
-            icon: "solar:pen-new-square-broken", listtitle: "Edit", onClick: (role: Role) => {
-                setSelectedRole(role);
-                setIsUpdateModalOpen(true);
-            },
-        },
-        {
-            icon: "solar:trash-bin-minimalistic-outline", listtitle: "Delete", onClick: (role: Role) => {
-                setSelectedRole(role);
-                setIsDeleteModalOpen(true);
-            },
-        },
-    ];
+    // Table action items (View, Edit, Delete) với phân quyền mới
+    const getTableActions = (role: Role) => {
+        const actions = [];
+        // View action - cần quyền read
+        if (perms.canRead) {
+            actions.push({
+                icon: "solar:eye-linear",
+                listtitle: "View",
+                onClick: () => {
+                    setSelectedRole(role);
+                    setIsDrawerOpen(true);
+                },
+            });
+        }
+        // Edit action - cần quyền update
+        if (perms.canUpdate) {
+            actions.push({
+                icon: "solar:pen-new-square-broken",
+                listtitle: "Edit",
+                onClick: () => {
+                    setSelectedRole(role);
+                    setIsUpdateModalOpen(true);
+                },
+            });
+        }
+        // Delete action - cần quyền delete
+        if (perms.canDelete) {
+            actions.push({
+                icon: "solar:trash-bin-minimalistic-outline",
+                listtitle: "Delete",
+                onClick: () => {
+                    setSelectedRole(role);
+                    setIsDeleteModalOpen(true);
+                },
+            });
+        }
+        return actions;
+    };
 
     return (
         <div className="rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray p-6 relative w-full break-words">
             <div className="flex justify-between items-center mb-4">
                 <h5 className="card-title">Roles</h5>
-                <Button color="primary" onClick={() => setIsCreateModalOpen(true)}>
-                    Create Role
-                </Button>
+                {perms.canCreate && (
+                    <Button color="primary" onClick={() => setIsCreateModalOpen(true)}>
+                        Create Role
+                    </Button>
+                )}
             </div>
 
             {/* Search Bar */}
@@ -213,57 +244,60 @@ const RoleTable: React.FC<RoleTableProps> = ({ refreshKey = 0 }) => {
                                     </Table.Cell>
                                 </Table.Row>
                             ) : (
-                                roles.map((role) => (
-                                    <Table.Row key={role.id}>
-                                        <Table.Cell className="whitespace-nowrap ps-6">
-                                            {role.id}
-                                        </Table.Cell>
-                                        <Table.Cell>
-                                            <span className="font-medium text-gray-900 dark:text-white">
-                                                {role.name}
-                                            </span>
-                                        </Table.Cell>
-                                        <Table.Cell>
-                                            <span className="text-gray-600 dark:text-gray-400">
-                                                {role.description || "No description"}
-                                            </span>
-                                        </Table.Cell>
-                                        <Table.Cell>
-                                            <Badge color={getStatusBadgeColor(role.active)} className="text-sm">
-                                                {role.active ? "Active" : "Inactive"}
-                                            </Badge>
-                                        </Table.Cell>
-                                        <Table.Cell>
-                                            <Badge color="gray" className="text-sm">
-                                                {role.permissions?.length || 0} permissions
-                                            </Badge>
-                                        </Table.Cell>
-                                        <Table.Cell>
-                                            {role.createAt
-                                                ? new Date(role.createAt).toLocaleDateString()
-                                                : "N/A"}
-                                        </Table.Cell>
-                                        <Table.Cell>
-                                            {role.updateAt
-                                                ? new Date(role.updateAt).toLocaleDateString()
-                                                : "N/A"}
-                                        </Table.Cell>
-                                        <Table.Cell>
-                                            <div className="flex justify-center items-center">
-                                                {tableActionData.map((item, index) => (
-                                                    <button
-                                                        key={index}
-                                                        onClick={() => item.onClick?.(role)}
-                                                        className="p-2 rounded-full hover:bg-lightprimary hover:text-primary transition-colors"
-                                                        title={item.listtitle}
-                                                    >
-                                                        <Icon icon={item.icon} height={18} />
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </Table.Cell>
-                                    </Table.Row>
-                                ))
+                                roles.map((role) => {
+                                    const tableActions = getTableActions(role);
+                                    return (
+                                        <Table.Row key={role.id}>
+                                            <Table.Cell className="whitespace-nowrap ps-6">
+                                                {role.id}
+                                            </Table.Cell>
+                                            <Table.Cell>
+                                                <span className="font-medium text-gray-900 dark:text-white">
+                                                    {role.name}
+                                                </span>
+                                            </Table.Cell>
+                                            <Table.Cell>
+                                                <span className="text-gray-600 dark:text-gray-400">
+                                                    {role.description || "No description"}
+                                                </span>
+                                            </Table.Cell>
+                                            <Table.Cell>
+                                                <Badge color={getStatusBadgeColor(role.active)} className="text-sm">
+                                                    {role.active ? "Active" : "Inactive"}
+                                                </Badge>
+                                            </Table.Cell>
+                                            <Table.Cell>
+                                                <Badge color="gray" className="text-sm">
+                                                    {role.permissions?.length || 0} permissions
+                                                </Badge>
+                                            </Table.Cell>
+                                            <Table.Cell>
+                                                {role.createAt
+                                                    ? new Date(role.createAt).toLocaleDateString()
+                                                    : "N/A"}
+                                            </Table.Cell>
+                                            <Table.Cell>
+                                                {role.updateAt
+                                                    ? new Date(role.updateAt).toLocaleDateString()
+                                                    : "N/A"}
+                                            </Table.Cell>
+                                            <Table.Cell>
+                                                <div className="flex justify-center items-center">
+                                                    {tableActions.map((item, index) => (
+                                                        <button
+                                                            key={index}
+                                                            onClick={item.onClick}
+                                                            className="p-2 rounded-full hover:bg-lightprimary hover:text-primary transition-colors"
+                                                            title={item.listtitle}
+                                                        >
+                                                            <Icon icon={item.icon} height={18} />
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </Table.Cell>
+                                        </Table.Row>
+                                    );
+                                })
                             )}
                         </Table.Body>
                     </Table>

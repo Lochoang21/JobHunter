@@ -8,6 +8,8 @@ import { Permission, PermissionResponse, DeletePermissionResponse } from "@/type
 import useDebounce from "@/app/hooks/useDebounce";
 import CreatePermission from "./CreatePermisson";
 import UpdatePermission from "./UpdatePermisson";
+import { useAuth } from '@/contexts/AuthContext';
+import { MODULES, PERMISSION_ACTIONS } from '@/utils/permissions';
 
 // Custom event for refreshing the table
 const refreshTableEvent = new Event("refreshPermissionTable");
@@ -41,6 +43,10 @@ const PermissionTable: React.FC<PermissionTableProps> = ({ refreshKey = 0 }) => 
     const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+    const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+    const { getModulePermissions, hasPermission } = useAuth();
+    const perms = getModulePermissions(MODULES.PERMISSIONS);
 
     // Fetch permissions from API
     const fetchPermissions = async () => {
@@ -125,29 +131,54 @@ const PermissionTable: React.FC<PermissionTableProps> = ({ refreshKey = 0 }) => 
         }
     };
 
-    // Table action items (Edit, Delete)
-    const tableActionData = [
-        {
-            icon: "solar:pen-new-square-broken", listtitle: "Edit", onClick: (permission: Permission) => {
-                setSelectedPermission(permission);
-                setIsUpdateModalOpen(true);
-            },
-        },
-        {
-            icon: "solar:trash-bin-minimalistic-outline", listtitle: "Delete", onClick: (permission: Permission) => {
-                setSelectedPermission(permission);
-                setIsDeleteModalOpen(true);
-            },
-        },
-    ];
+    // Table action items (View, Edit, Delete) với phân quyền mới
+    const getTableActions = ((permission: Permission) => {
+        const actions = [];
+        // View action - cần quyền read
+        if (perms.canRead) {
+            actions.push({
+                icon: "solar:eye-linear",
+                listtitle: "View",
+                onClick: () => {
+                    setSelectedPermission(permission);
+                    setIsDrawerOpen(true);
+                },
+            });
+        }
+        // Edit action - cần quyền update
+        if (perms.canUpdate) {
+            actions.push({
+                icon: "solar:pen-new-square-broken",
+                listtitle: "Edit",
+                onClick: () => {
+                    setSelectedPermission(permission);
+                    setIsUpdateModalOpen(true);
+                },
+            });
+        }
+        // Delete action - cần quyền delete
+        if (perms.canDelete) {
+            actions.push({
+                icon: "solar:trash-bin-minimalistic-outline",
+                listtitle: "Delete",
+                onClick: () => {
+                    setSelectedPermission(permission);
+                    setIsDeleteModalOpen(true);
+                },
+            });
+        }
+        return actions;
+    });
 
     return (
         <div className="rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray p-6 relative w-full break-words">
             <div className="flex justify-between items-center mb-4">
                 <h5 className="card-title">Permissions</h5>
-                <Button color="primary" onClick={() => setIsCreateModalOpen(true)}>
-                    Create Permission
-                </Button>
+                {perms.canCreate && (
+                    <Button color="primary" onClick={() => setIsCreateModalOpen(true)}>
+                        Create Permission
+                    </Button>
+                )}
             </div>
 
             {/* Search Bar */}
@@ -225,57 +256,60 @@ const PermissionTable: React.FC<PermissionTableProps> = ({ refreshKey = 0 }) => 
                                     </Table.Cell>
                                 </Table.Row>
                             ) : (
-                                permissions.map((permission) => (
-                                    <Table.Row key={permission.id}>
-                                        <Table.Cell className="whitespace-nowrap ps-6">
-                                            {permission.id}
-                                        </Table.Cell>
-                                        <Table.Cell>
-                                            <span className="text-gray-900 dark:text-white">
-                                                {permission.name}
-                                            </span>
-                                        </Table.Cell>
-                                        <Table.Cell>
-                                            <code className="text-sm bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
-                                                {permission.apiPath}
-                                            </code>
-                                        </Table.Cell>
-                                        <Table.Cell>
-                                            <Badge color={getMethodBadgeColor(permission.method)} className="text-sm">
-                                                {permission.method}
-                                            </Badge>
-                                        </Table.Cell>
-                                        <Table.Cell>
-                                            <Badge color="purple" className="text-sm">
-                                                {permission.module}
-                                            </Badge>
-                                        </Table.Cell>
-                                        <Table.Cell>
-                                            {permission.createAt
-                                                ? new Date(permission.createAt).toLocaleDateString()
-                                                : "N/A"}
-                                        </Table.Cell>
-                                        <Table.Cell>
-                                            {permission.updateAt
-                                                ? new Date(permission.updateAt).toLocaleDateString()
-                                                : "N/A"}
-                                        </Table.Cell>
-                                        <Table.Cell>
-                                            <div className="flex justify-center items-center">
-                                                {tableActionData.map((item, index) => (
-                                                    <button
-                                                        key={index}
-                                                        onClick={() => item.onClick?.(permission)}
-                                                        className="p-2 rounded-full hover:bg-lightprimary hover:text-primary transition-colors"
-                                                        title={item.listtitle}
-                                                    >
-                                                        <Icon icon={item.icon} height={18} />
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </Table.Cell>
-                                    </Table.Row>
-                                ))
+                                permissions.map((permission) => {
+                                    const tableActions = getTableActions(permission);
+                                    return (
+                                        <Table.Row key={permission.id}>
+                                            <Table.Cell className="whitespace-nowrap ps-6">
+                                                {permission.id}
+                                            </Table.Cell>
+                                            <Table.Cell>
+                                                <span className="text-gray-900 dark:text-white">
+                                                    {permission.name}
+                                                </span>
+                                            </Table.Cell>
+                                            <Table.Cell>
+                                                <code className="text-sm bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
+                                                    {permission.apiPath}
+                                                </code>
+                                            </Table.Cell>
+                                            <Table.Cell>
+                                                <Badge color={getMethodBadgeColor(permission.method)} className="text-sm">
+                                                    {permission.method}
+                                                </Badge>
+                                            </Table.Cell>
+                                            <Table.Cell>
+                                                <Badge color="purple" className="text-sm">
+                                                    {permission.module}
+                                                </Badge>
+                                            </Table.Cell>
+                                            <Table.Cell>
+                                                {permission.createAt
+                                                    ? new Date(permission.createAt).toLocaleDateString()
+                                                    : "N/A"}
+                                            </Table.Cell>
+                                            <Table.Cell>
+                                                {permission.updateAt
+                                                    ? new Date(permission.updateAt).toLocaleDateString()
+                                                    : "N/A"}
+                                            </Table.Cell>
+                                            <Table.Cell>
+                                                <div className="flex justify-center items-center">
+                                                    {tableActions.map((item, index) => (
+                                                        <button
+                                                            key={index}
+                                                            onClick={item.onClick}
+                                                            className="p-2 rounded-full hover:bg-lightprimary hover:text-primary transition-colors"
+                                                            title={item.listtitle}
+                                                        >
+                                                            <Icon icon={item.icon} height={18} />
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </Table.Cell>
+                                        </Table.Row>
+                                    );
+                                })
                             )}
                         </Table.Body>
                     </Table>

@@ -9,6 +9,8 @@ import CreateJob from "./CreateJob";
 import UpdateJob from "./UpdateJob";
 import JobDetail from "./JobDetail";
 import useDebounce from "@/app/hooks/useDebounce";
+import { useAuth } from '@/contexts/AuthContext';
+import { MODULES, PERMISSION_ACTIONS } from '@/utils/permissions';
 
 // Custom event for refreshing the table
 const refreshTableEvent = new Event("refreshJobTable");
@@ -35,6 +37,9 @@ const JobTable: React.FC<JobTableProps> = ({ refreshKey = 0 }) => {
     const [selectedJob, setSelectedJob] = useState<Job | null>(null);
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
+
+    const { getModulePermissions, hasPermission } = useAuth();
+    const perms = getModulePermissions(MODULES.JOBS);
 
     // Fetch jobs from API
     const fetchJobs = async () => {
@@ -104,42 +109,54 @@ const JobTable: React.FC<JobTableProps> = ({ refreshKey = 0 }) => {
         }
     };
 
-    // Table action items (View, Edit, Delete)
-    const tableActionData = [
-        {
-            icon: "solar:eye-linear",
-            listtitle: "View",
-            onClick: (job: Job) => {
-                setSelectedJob(job);
-                setIsDrawerOpen(true);
-            },
-        },
-        {
-            icon: "solar:pen-new-square-broken",
-            listtitle: "Edit",
-            onClick: (job: Job) => {
-                setSelectedJob(job);
-                setIsUpdateModalOpen(true);
-            },
-        },
-        {
-            icon: "solar:trash-bin-minimalistic-outline",
-            listtitle: "Delete",
-            onClick: (job: Job) => {
-                setSelectedJob(job);
-                setIsDeleteModalOpen(true);
-            },
-        },
-    ];
-
+    // Table action items (View, Edit, Delete) với phân quyền mới
+    const getTableActions = (job: Job) => {
+        const actions = [];
+        // View action - cần quyền read
+        if (perms.canRead) {
+            actions.push({
+                icon: "solar:eye-linear",
+                listtitle: "View",
+                onClick: () => {
+                    setSelectedJob(job);
+                    setIsDrawerOpen(true);
+                },
+            });
+        }
+        // Edit action - cần quyền update
+        if (perms.canUpdate) {
+            actions.push({
+                icon: "solar:pen-new-square-broken",
+                listtitle: "Edit",
+                onClick: () => {
+                    setSelectedJob(job);
+                    setIsUpdateModalOpen(true);
+                },
+            });
+        }
+        // Delete action - cần quyền delete
+        if (perms.canDelete) {
+            actions.push({
+                icon: "solar:trash-bin-minimalistic-outline",
+                listtitle: "Delete",
+                onClick: () => {
+                    setSelectedJob(job);
+                    setIsDeleteModalOpen(true);
+                },
+            });
+        }
+        return actions;
+    };
 
     return (
         <div className="rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray p-6 relative w-full break-words">
             <div className="flex justify-between items-center mb-4">
                 <h5 className="card-title">Jobs</h5>
-                <Button color="primary" onClick={() => setIsCreateModalOpen(true)}>
-                    Create Job
-                </Button>
+                {perms.canCreate && (
+                    <Button color="primary" onClick={() => setIsCreateModalOpen(true)}>
+                        Create Job
+                    </Button>
+                )}
             </div>
             {/* Search Bar */}
             <form onSubmit={handleSearch} className="my-4 flex gap-4 items-center">
@@ -203,37 +220,44 @@ const JobTable: React.FC<JobTableProps> = ({ refreshKey = 0 }) => {
                                     </Table.Cell>
                                 </Table.Row>
                             )}
-                            {jobs.map((job) => (
-                                <Table.Row key={job.id}>
-                                    <Table.Cell className="whitespace-nowrap ps-6">{job.id}</Table.Cell>
-                                    <Table.Cell>{job.name || "N/A"}</Table.Cell>
-                                    <Table.Cell>{job.location || "N/A"}</Table.Cell>
-                                    <Table.Cell>${job.salary.toLocaleString()}</Table.Cell>
-                                    <Table.Cell>{job.level || "N/A"}</Table.Cell>
-                                    <Table.Cell>
-                                        <Badge
-                                            color={job.active ? "success" : "failure"}
-                                            className={job.active ? "text-green-800" : "text-red-800"}
-                                        >
-                                            {job.active ? "Yes" : "No"}
-                                        </Badge>
-                                    </Table.Cell>
-                                    <Table.Cell>
-                                        <div className="flex justify-center items-center">
-                                            {tableActionData.map((item, index) => (
-                                                <button
-                                                    key={index}
-                                                    onClick={() => item.onClick?.(job)}
-                                                    className="p-2 rounded-full hover:bg-lightprimary hover:text-primary transition-colors"
-                                                    title={item.listtitle}
-                                                >
-                                                    <Icon icon={item.icon} height={18} />
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </Table.Cell>
-                                </Table.Row>
-                            ))}
+                            {jobs.map((job) => {
+                                const tableActions = getTableActions(job);
+                                return (
+                                    <Table.Row key={job.id}>
+                                        <Table.Cell className="whitespace-nowrap ps-6">{job.id}</Table.Cell>
+                                        <Table.Cell>{job.name || "N/A"}</Table.Cell>
+                                        <Table.Cell>{job.location || "N/A"}</Table.Cell>
+                                        <Table.Cell>${job.salary.toLocaleString()}</Table.Cell>
+                                        <Table.Cell>{job.level || "N/A"}</Table.Cell>
+                                        <Table.Cell>
+                                            <Badge
+                                                color={job.active ? "success" : "failure"}
+                                                className={job.active ? "text-green-800" : "text-red-800"}
+                                            >
+                                                {job.active ? "Yes" : "No"}
+                                            </Badge>
+                                        </Table.Cell>
+                                        <Table.Cell>
+                                            <div className="flex justify-center items-center">
+                                                {tableActions.length > 0 ? (
+                                                    tableActions.map((item, index) => (
+                                                        <button
+                                                            key={index}
+                                                            onClick={() => item.onClick()}
+                                                            className="p-2 rounded-full hover:bg-lightprimary hover:text-primary transition-colors"
+                                                            title={item.listtitle}
+                                                        >
+                                                            <Icon icon={item.icon} height={18} />
+                                                        </button>
+                                                    ))
+                                                ) : (
+                                                    <span className="text-gray-400 text-sm">No actions available</span>
+                                                )}
+                                            </div>
+                                        </Table.Cell>
+                                    </Table.Row>
+                                );
+                            })}
                         </Table.Body>
                     </Table>
                 </div>
