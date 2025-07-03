@@ -46,7 +46,17 @@ export interface User {
     id: number;
     email: string;
     name: string | null;
+    age: number;
+    gender: GenderEnum;
+    address: string | null;
+    company: any | null;
     role: Role | null;
+    createAt: string;
+    updateAt: string | null;
+    avatar?: string;
+    phone?: string;
+    dateOfBirth?: string;
+    createdAt?: string;
 }
 
 export interface LoginResponse {

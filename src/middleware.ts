@@ -77,7 +77,7 @@ export function middleware(request: NextRequest) {
             }
 
             if (!hasPermission) {
-                return NextResponse.redirect(new URL('/auth/forbidden', request.url));
+                return NextResponse.redirect(new URL('/admin/ui/auth_forbidden', request.url));
             }
         }
     }

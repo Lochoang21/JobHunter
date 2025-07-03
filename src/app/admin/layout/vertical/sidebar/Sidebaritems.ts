@@ -40,7 +40,7 @@ const SidebarContent: MenuItem[] = [
     ],
   },
   {
-    heading: "UTILITIES",
+    heading: "TABS MANAGEMENT",
     children: [
       {
         name: "User",
