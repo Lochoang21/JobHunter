@@ -92,6 +92,13 @@ const SidebarContent: MenuItem[] = [
         module: "roles",
       },
       {
+        name: "Subscriber",
+        icon: "solar:user-check-rounded-outline",
+        id: uniqueId(),
+        url: "/admin/ui/subscriber",
+        module: "subscribers",
+      },
+      {
         name: "Form",
         icon: "solar:password-minimalistic-outline",
         id: uniqueId(),

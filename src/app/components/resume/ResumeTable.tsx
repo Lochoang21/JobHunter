@@ -57,7 +57,7 @@ const ResumeTable: React.FC<ResumeTableProps> = ({ refreshKey = 0 }) => {
         setError(null);
         try {
             const filter = debouncedSearchValue ? `${search.field}~\ '${debouncedSearchValue}'` : "";
-            const response = await api.get<ResumeResponse>("/resumes/all", {
+            const response = await api.get<ResumeResponse>("/resumes", {
                 params: { page: page - 1, size, filter },
             });
             setResumes(response.data.data.result);

@@ -7,6 +7,7 @@ import { User } from "@/types/auth";
 import ProfileTab from "./ProfileTab";
 import LoginTab from "./LoginTab";
 import NotificationsTab from "./NotificationsTab";
+import MyResume from "./MyResume";
 
 const Profile: React.FC = () => {
     const { user: contextUser, loading: contextLoading } = useCurrentUser();
@@ -81,6 +82,15 @@ const Profile: React.FC = () => {
                     >
                         Thông báo
                     </button>
+                    <button
+                        onClick={() => setActiveTab('resume')}
+                        className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'resume'
+                            ? 'border-blue-600 text-blue-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                    >
+                        Việc làm đã ứng tuyển
+                    </button>
                 </nav>
             </div>
 
@@ -89,6 +99,7 @@ const Profile: React.FC = () => {
                 {activeTab === 'profile' && <ProfileTab user={user} />}
                 {activeTab === 'login' && <LoginTab user={user} />}
                 {activeTab === 'notifications' && <NotificationsTab />}
+                {activeTab === 'resume' && <MyResume />}
             </div>
         </div>
     );

@@ -6,6 +6,7 @@ import { Flowbite, ThemeModeScript } from "flowbite-react";
 import customTheme from "@/utils/theme/custom-theme";
 import "./css/globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { SubscriberProvider } from "@/contexts/SubscriberContext";
 
 const manrope = Manrope({ subsets: ["latin"] });
 
@@ -28,7 +29,9 @@ export default function RootLayout({
       <body className={`${manrope.className}`}>
         <Flowbite theme={{ theme: customTheme }}>
           <AuthProvider>
-            {children}
+            <SubscriberProvider>
+              {children}
+            </SubscriberProvider>
           </AuthProvider>
         </Flowbite>
       </body>

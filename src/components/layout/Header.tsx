@@ -3,11 +3,13 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSubscriber } from '@/contexts/SubscriberContext';
 import { Button } from 'flowbite-react';
 import { useRouter } from 'next/navigation';
 
 const Header = () => {
     const { user, logout } = useAuth();
+    const { isSubscriber } = useSubscriber();
     const router = useRouter();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -40,6 +42,9 @@ const Header = () => {
                             <div className="flex items-center space-x-4">
                                 <Link href="/profile" className="text-gray-600 hover:text-primary">
                                     Hồ sơ
+                                </Link>
+                                <Link href="/subscriber" className="text-gray-600 hover:text-primary">
+                                    {isSubscriber ? '📧 Đã đăng ký' : '📧 Đăng ký thông báo'}
                                 </Link>
                                 <Button color="primary" onClick={handleLogout}>
                                     Đăng xuất
@@ -119,6 +124,13 @@ const Header = () => {
                                     onClick={() => setIsMenuOpen(false)}
                                 >
                                     Hồ sơ
+                                </Link>
+                                <Link
+                                    href="/subscriber"
+                                    className="block text-gray-600 hover:text-primary"
+                                    onClick={() => setIsMenuOpen(false)}
+                                >
+                                    {isSubscriber ? '📧 Đã đăng ký' : '📧 Đăng ký thông báo'}
                                 </Link>
                                 <Button color="primary" onClick={handleLogout} className="w-full">
                                     Đăng xuất
