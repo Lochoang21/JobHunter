@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Button, Table, Badge, Modal, Alert, Spinner, Tooltip } from 'flowbite-react';
+import { Button, Table, Badge, Modal, Alert, Spinner, Tooltip, Select, Pagination, TextInput } from 'flowbite-react';
 import { subscriberService } from '@/services/subscriber.service';
 import { Subscriber, Meta } from '@/types/subscriber';
 import { HiOutlineMail, HiOutlineTrash, HiOutlineRefresh, HiOutlineUser } from 'react-icons/hi';
@@ -9,8 +9,12 @@ import { useSimpleNotification } from '@/hooks/useNotification';
 
 const SubscriberManagement: React.FC = () => {
     const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
-    const [meta, setMeta] = useState<Meta | null>(null);
+    const [meta, setMeta] = useState<Meta>({ page: 1, pageSize: 5, pages: 1, total: 0 });
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [page, setPage] = useState(1);
+    const [size, setSize] = useState(5);
+    const [search, setSearch] = useState<string>("");
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [selectedSubscriber, setSelectedSubscriber] = useState<Subscriber | null>(null);
     const [sendingEmails, setSendingEmails] = useState(false);
@@ -19,21 +23,25 @@ const SubscriberManagement: React.FC = () => {
     const [showIndividualEmailModal, setShowIndividualEmailModal] = useState(false);
 
     // Sử dụng hook quản lý thông báo
-    const { success, error, showSuccess, showError, clearAll } = useSimpleNotification(5000);
+    const { success, error: notificationError, showSuccess, showError, clearAll } = useSimpleNotification(5000);
 
     useEffect(() => {
         loadSubscribers();
-    }, []);
+    }, [page, size, search]);
 
     const loadSubscribers = async () => {
         try {
             setLoading(true);
             clearAll();
-            const { subscribers, meta } = await subscriberService.getAllSubscribers();
-            setSubscribers(subscribers);
-            setMeta(meta);
+            setError(null);
+            // Giả sử API hỗ trợ truyền page, size, filter
+            const params: any = { page, size };
+            if (search) params.filter = `email~'${search}'`;
+            const response = await subscriberService.getAllSubscribers(params);
+            setSubscribers(response.subscribers);
+            setMeta(response.meta);
         } catch (err: any) {
-            showError(err.response?.data?.message || 'Failed to load subscribers');
+            setError(err.response?.data?.message || 'Failed to load subscribers');
         } finally {
             setLoading(false);
         }
@@ -103,7 +111,7 @@ const SubscriberManagement: React.FC = () => {
                     </h2>
                     {meta && (
                         <p className="text-sm text-gray-600 mt-1">
-                            Hiển thị {subscribers.length} trong tổng số {meta.total} subscribers
+                            Hiển thị {meta.pageSize * (meta.page - 1) + 1} đến {Math.min(meta.pageSize * meta.page, meta.total)} trong tổng số {meta.total} subscribers
                             (Trang {meta.page}/{meta.pages})
                         </p>
                     )}
@@ -136,6 +144,38 @@ const SubscriberManagement: React.FC = () => {
                 </div>
             </div>
 
+            {/* Search & Page Size Selector */}
+            <div className="flex flex-wrap gap-4 items-center my-4">
+                <TextInput
+                    type="text"
+                    placeholder="Tìm kiếm theo email"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    className="w-64"
+                />
+                <Button
+                    color="light"
+                    onClick={() => setSearch("")}
+                    disabled={!search}
+                >
+                    Xóa tìm kiếm
+                </Button>
+                <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">Hiển thị:</span>
+                    <Select
+                        value={size}
+                        onChange={e => { setSize(Number(e.target.value)); setPage(1); }}
+                        className="w-20"
+                    >
+                        <option value={5}>5</option>
+                        <option value={10}>10</option>
+                        <option value={20}>20</option>
+                        <option value={50}>50</option>
+                    </Select>
+                    <span className="text-sm text-gray-600">mục</span>
+                </div>
+            </div>
+
             {error && (
                 <Alert color="failure" onDismiss={() => clearAll()}>
                     <div className="flex items-center">
@@ -155,7 +195,7 @@ const SubscriberManagement: React.FC = () => {
             )}
 
             <div className="bg-white shadow rounded-lg overflow-hidden">
-                <Table>
+                <Table hoverable>
                     <Table.Head>
                         <Table.HeadCell>ID</Table.HeadCell>
                         <Table.HeadCell>Tên</Table.HeadCell>
@@ -166,83 +206,109 @@ const SubscriberManagement: React.FC = () => {
                         <Table.HeadCell>Thao tác</Table.HeadCell>
                     </Table.Head>
                     <Table.Body>
-                        {safeSubscribers.map((subscriber) => (
-                            <Table.Row key={subscriber.id}>
-                                <Table.Cell>{subscriber.id}</Table.Cell>
-                                <Table.Cell className="font-medium">
-                                    {subscriber.name}
-                                </Table.Cell>
-                                <Table.Cell>
-                                    <div className="flex items-center">
-                                        <HiOutlineMail className="mr-1 h-4 w-4 text-gray-400" />
-                                        {subscriber.email}
-                                    </div>
-                                </Table.Cell>
-                                <Table.Cell>
-                                    <div className="flex flex-wrap gap-1">
-                                        {subscriber.skills && subscriber.skills.length > 0 ? (
-                                            subscriber.skills.map((skill) => (
-                                                <Badge key={skill.id} color="blue" size="sm">
-                                                    {skill.name}
-                                                </Badge>
-                                            ))
-                                        ) : (
-                                            <span className="text-gray-400 text-sm">Không có kỹ năng</span>
-                                        )}
-                                    </div>
-                                </Table.Cell>
-                                <Table.Cell>
-                                    {new Date(subscriber.createAt).toLocaleDateString('vi-VN')}
-                                </Table.Cell>
-                                <Table.Cell>
-                                    <span className="text-sm text-gray-600">
-                                        {subscriber.createBy}
-                                    </span>
-                                </Table.Cell>
-                                <Table.Cell>
-                                    <div className="flex gap-2">
-                                        <Tooltip content="Gửi email cho subscriber này">
-                                            <Button
-                                                color="blue"
-                                                size="sm"
-                                                onClick={() => {
-                                                    setSelectedSubscriber(subscriber);
-                                                    setShowIndividualEmailModal(true);
-                                                }}
-                                                disabled={sendingIndividualEmail === subscriber.id}
-                                            >
-                                                {sendingIndividualEmail === subscriber.id ? (
-                                                    <Spinner size="sm" />
-                                                ) : (
-                                                    <HiOutlineUser className="h-4 w-4" />
-                                                )}
-                                            </Button>
-                                        </Tooltip>
-                                        <Tooltip content="Xóa subscriber">
-                                            <Button
-                                                color="failure"
-                                                size="sm"
-                                                onClick={() => {
-                                                    setSelectedSubscriber(subscriber);
-                                                    setShowDeleteModal(true);
-                                                }}
-                                            >
-                                                <HiOutlineTrash className="h-4 w-4" />
-                                            </Button>
-                                        </Tooltip>
+                        {loading ? (
+                            <Table.Row>
+                                <Table.Cell colSpan={7} className="text-center py-8">
+                                    <div className="flex justify-center items-center">
+                                        <Spinner size="lg" />
+                                        <span className="ml-2">Đang tải...</span>
                                     </div>
                                 </Table.Cell>
                             </Table.Row>
-                        ))}
+                        ) : subscribers.length === 0 ? (
+                            <Table.Row>
+                                <Table.Cell colSpan={7} className="text-center">
+                                    Không có subscriber nào.
+                                </Table.Cell>
+                            </Table.Row>
+                        ) : (
+                            subscribers.map((subscriber) => (
+                                <Table.Row key={subscriber.id}>
+                                    <Table.Cell>{subscriber.id}</Table.Cell>
+                                    <Table.Cell className="font-medium">
+                                        {subscriber.name}
+                                    </Table.Cell>
+                                    <Table.Cell>
+                                        <div className="flex items-center">
+                                            <HiOutlineMail className="mr-1 h-4 w-4 text-gray-400" />
+                                            {subscriber.email}
+                                        </div>
+                                    </Table.Cell>
+                                    <Table.Cell>
+                                        <div className="flex flex-wrap gap-1">
+                                            {subscriber.skills && subscriber.skills.length > 0 ? (
+                                                subscriber.skills.map((skill) => (
+                                                    <Badge key={skill.id} color="blue" size="sm">
+                                                        {skill.name}
+                                                    </Badge>
+                                                ))
+                                            ) : (
+                                                <span className="text-gray-400 text-sm">Không có kỹ năng</span>
+                                            )}
+                                        </div>
+                                    </Table.Cell>
+                                    <Table.Cell>
+                                        {new Date(subscriber.createAt).toLocaleDateString('vi-VN')}
+                                    </Table.Cell>
+                                    <Table.Cell>
+                                        <span className="text-sm text-gray-600">
+                                            {subscriber.createBy}
+                                        </span>
+                                    </Table.Cell>
+                                    <Table.Cell>
+                                        <div className="flex gap-2">
+                                            <Tooltip content="Gửi email cho subscriber này">
+                                                <Button
+                                                    color="blue"
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        setSelectedSubscriber(subscriber);
+                                                        setShowIndividualEmailModal(true);
+                                                    }}
+                                                    disabled={sendingIndividualEmail === subscriber.id}
+                                                >
+                                                    {sendingIndividualEmail === subscriber.id ? (
+                                                        <Spinner size="sm" />
+                                                    ) : (
+                                                        <HiOutlineUser className="h-4 w-4" />
+                                                    )}
+                                                </Button>
+                                            </Tooltip>
+                                            <Tooltip content="Xóa subscriber">
+                                                <Button
+                                                    color="failure"
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        setSelectedSubscriber(subscriber);
+                                                        setShowDeleteModal(true);
+                                                    }}
+                                                >
+                                                    <HiOutlineTrash className="h-4 w-4" />
+                                                </Button>
+                                            </Tooltip>
+                                        </div>
+                                    </Table.Cell>
+                                </Table.Row>
+                            ))
+                        )}
                     </Table.Body>
                 </Table>
-
-                {subscribers.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                        Không có subscriber nào.
-                    </div>
-                )}
             </div>
+
+            {/* Pagination */}
+            {!loading && !error && subscribers.length > 0 && (
+                <div className="flex flex-col items-center mt-6">
+                    <div className="text-sm text-gray-600 mb-4">
+                        Hiển thị {meta.pageSize * (meta.page - 1) + 1} đến {Math.min(meta.pageSize * meta.page, meta.total)} trong tổng số {meta.total} subscribers
+                    </div>
+                    <Pagination
+                        currentPage={meta.page}
+                        totalPages={meta.pages}
+                        onPageChange={setPage}
+                        showIcons
+                    />
+                </div>
+            )}
 
             {/* Delete Confirmation Modal */}
             <Modal

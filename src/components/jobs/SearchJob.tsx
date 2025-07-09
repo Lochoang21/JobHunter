@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 interface SearchJobProps {
@@ -11,44 +11,55 @@ const SearchJob: React.FC<SearchJobProps> = ({ onSearch }) => {
   const searchParams = useSearchParams();
 
   const [jobTitle, setJobTitle] = useState(searchParams.get('jobTitle') || '');
-  const [location, setLocation] = useState(searchParams.get('location') || 'TP Hồ Chí Minh');
-  const [isLocationOpen, setIsLocationOpen] = useState(false);
+  const [location, setLocation] = useState(searchParams.get('location') || '');
 
   const popularTags = ['UI Designer', 'UX Researcher', 'Android', 'Admin'];
 
-  // Mảng các thành phố
-  const cities = [
-    'TP Hồ Chí Minh',
-    'Hà Nội',
-    'Đà Nẵng',
-    'Bình Dương',
-    'Cần Thơ',
-    'Hải Phòng',
-    'Vũng Tàu',
-    'Huế'
-  ];
+  // Tạo filter giống JobTable
+  const buildFilter = useCallback((title: string, loc: string) => {
+    let filters: string[] = [];
+    if (title.trim()) {
+      filters.push(`name~'${title.trim()}'`);
+    }
+    if (loc.trim()) {
+      filters.push(`location~'${loc.trim()}'`);
+    }
+    return filters.join(';');
+  }, []);
 
-  const handleSearch = () => {
+  const handleSearch = useCallback((titleOverride?: string, locationOverride?: string) => {
+    // Sử dụng giá trị override nếu có, nếu không thì dùng state hiện tại
+    const currentTitle = titleOverride !== undefined ? titleOverride : jobTitle;
+    const currentLocation = locationOverride !== undefined ? locationOverride : location;
+    
+    const filter = buildFilter(currentTitle, currentLocation);
     const params = new URLSearchParams();
-    if (jobTitle.trim()) {
-      params.set('jobTitle', jobTitle.trim());
+    if (filter) {
+      params.set('filter', filter);
     }
-    if (location) {
-      params.set('location', location);
-    }
-
-    // Navigate to job listing page with search parameters
     router.push(`/job?${params.toString()}`);
-
-    // Call onSearch callback if provided
     if (onSearch) {
-      onSearch(jobTitle.trim(), location);
+      onSearch(currentTitle.trim(), currentLocation.trim());
     }
+  }, [jobTitle, location, buildFilter, router, onSearch]);
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Truyền trực tiếp giá trị hiện tại để tránh timing issue
+    handleSearch(jobTitle, location);
   };
 
   const handlePopularTagClick = (tag: string) => {
     setJobTitle(tag);
-    handleSearch();
+    // Sử dụng callback để đảm bảo search được thực hiện với giá trị mới
+    setTimeout(() => handleSearch(tag, location), 0);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSearch(jobTitle, location);
+    }
   };
 
   return (
@@ -70,7 +81,10 @@ const SearchJob: React.FC<SearchJobProps> = ({ onSearch }) => {
 
           {/* Search Section */}
           <div className="max-w-4xl mx-auto">
-            <div className="flex flex-col md:flex-row gap-4 bg-white rounded-lg shadow-lg p-2">
+            <form
+              onSubmit={handleFormSubmit}
+              className="flex flex-col md:flex-row gap-4 bg-white rounded-lg shadow-lg p-2"
+            >
               {/* Job Title Search */}
               <div className="flex-1 relative">
                 <div className="flex items-center">
@@ -79,7 +93,7 @@ const SearchJob: React.FC<SearchJobProps> = ({ onSearch }) => {
                     placeholder="Job title or keyword"
                     value={jobTitle}
                     onChange={(e) => setJobTitle(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                    onKeyDown={handleKeyDown}
                     className="w-full px-4 py-3 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-0 border-0"
                   />
                 </div>
@@ -88,45 +102,28 @@ const SearchJob: React.FC<SearchJobProps> = ({ onSearch }) => {
               {/* Divider */}
               <div className="hidden md:block w-px bg-gray-200 my-2"></div>
 
-              {/* Location Dropdown */}
-              <div className="relative md:w-80">
-                <button
-                  onClick={() => setIsLocationOpen(!isLocationOpen)}
-                  className="w-full flex items-center justify-between px-4 py-3 text-gray-700 hover:bg-gray-50 focus:outline-none"
-                >
-                  <div className="flex items-center">
-                    <span>{location}</span>
-                  </div>
-                </button>
-
-                {isLocationOpen && (
-                  <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg mt-1 z-10">
-                    <div className="p-2">
-                      {cities.map((city, index) => (
-                        <div
-                          key={index}
-                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer rounded"
-                          onClick={() => {
-                            setLocation(city);
-                            setIsLocationOpen(false);
-                          }}
-                        >
-                          {city}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+              {/* Location Input */}
+              <div className="flex-1 relative">
+                <div className="flex items-center">
+                  <input
+                    type="text"
+                    placeholder="Location (e.g. Ho Chi Minh, Ha Noi...)"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    className="w-full px-4 py-3 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-0 border-0"
+                  />
+                </div>
               </div>
 
               {/* Search Button */}
               <button
-                onClick={handleSearch}
+                type="submit"
                 className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors"
               >
                 Search
               </button>
-            </div>
+            </form>
 
             {/* Popular Tags */}
             <div className="mt-8 text-center">

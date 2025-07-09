@@ -53,8 +53,8 @@ export const subscriberService = {
     },
 
     // Lấy tất cả subscribers (cho admin) - cập nhật để gọi đúng endpoint
-    async getAllSubscribers(): Promise<{ subscribers: Subscriber[], meta: Meta }> {
-        const response = await api.get<SubscribersResponse>('/subscribers');
+    async getAllSubscribers(params?: any): Promise<{ subscribers: Subscriber[], meta: Meta }> {
+        const response = await api.get<SubscribersResponse>('/subscribers', { params });
         return {
             subscribers: response.data.data.result,
             meta: response.data.data.meta

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import JobFilter from './JobFilter';
 import SearchJob from './SearchJob';
 import CardJob from './CardJob';
@@ -18,6 +18,7 @@ interface FilterState {
 
 const JobListing: React.FC = () => {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,34 +30,63 @@ const JobListing: React.FC = () => {
     salaryRanges: [],
   });
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchJobTitle, setSearchJobTitle] = useState(searchParams.get('jobTitle') || '');
-  const [searchLocation, setSearchLocation] = useState(searchParams.get('location') || '');
-  const jobsPerPage = 6; // Display 6 jobs per page
+  const jobsPerPage = 6;
 
-  // Fetch jobs from API with search parameters
-  const fetchJobs = useCallback(async () => {
+  // Parse search parameters from URL
+  const searchJobTitle = searchParams.get('jobTitle') || '';
+  const searchLocation = searchParams.get('location') || '';
+  const urlFilter = searchParams.get('filter') || '';
+
+  // Parse URL filter string to extract search terms
+  const parseUrlFilter = useCallback((filterString: string) => {
+    let jobTitle = '';
+    let location = '';
+    
+    if (filterString) {
+      const titleMatch = filterString.match(/name~'([^']+)'/);
+      const locationMatch = filterString.match(/location~'([^']+)'/);
+      
+      if (titleMatch) jobTitle = titleMatch[1];
+      if (locationMatch) location = locationMatch[1];
+    }
+    
+    return { jobTitle, location };
+  }, []);
+
+  // Get current search terms from URL
+  const currentSearchTerms = useMemo(() => {
+    if (urlFilter) {
+      return parseUrlFilter(urlFilter);
+    }
+    return { jobTitle: searchJobTitle, location: searchLocation };
+  }, [urlFilter, searchJobTitle, searchLocation, parseUrlFilter]);
+
+  // Build filter string for API
+  const buildFilterString = useCallback((jobTitle: string, location: string) => {
+    const filters = [];
+    
+    if (jobTitle.trim()) {
+      filters.push(`name~'${jobTitle.trim()}'`);
+    }
+    
+    if (location.trim()) {
+      filters.push(`location~'${location.trim()}'`);
+    }
+    
+    return filters.length > 0 ? filters.join(' AND ') : '';
+  }, []);
+
+  // Fetch jobs from API
+  const fetchJobs = useCallback(async (page: number = 1) => {
     try {
       setLoading(true);
       setError(null);
 
-      // Build filter string for API
-      let filterString = '';
-      const filters = [];
-
-      if (searchJobTitle) {
-        filters.push(`name~'${searchJobTitle}'`);
-      }
-
-      if (searchLocation) {
-        filters.push(`location~'${searchLocation}'`);
-      }
-
-      if (filters.length > 0) {
-        filterString = filters.join(' AND ');
-      }
+      const { jobTitle, location } = currentSearchTerms;
+      const filterString = buildFilterString(jobTitle, location);
 
       const params: any = {
-        page: currentPage,
+        page: page,
         size: jobsPerPage
       };
 
@@ -67,41 +97,49 @@ const JobListing: React.FC = () => {
       const response = await api.get<JobResponse>('/jobs', { params });
       setJobs(response.data.data.result);
       setMeta(response.data.data.meta);
-      console.log('Jobs fetched with search:', response.data.data.result);
+      console.log('Jobs fetched:', response.data.data.result);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to fetch jobs');
       console.error('Fetch jobs error:', err.response?.data || err.message);
     } finally {
       setLoading(false);
     }
-  }, [searchJobTitle, searchLocation, currentPage, jobsPerPage]);
+  }, [currentSearchTerms, buildFilterString, jobsPerPage]);
 
-  // Fetch jobs when search parameters or page changes
+  // Handle search from SearchJob component
+  const handleSearch = useCallback((jobTitle: string, location: string) => {
+    const filterString = buildFilterString(jobTitle, location);
+    const params = new URLSearchParams();
+    
+    if (filterString) {
+      params.set('filter', filterString);
+    }
+    
+    // Update URL and reset to page 1
+    router.push(`/job?${params.toString()}`);
+    setCurrentPage(1);
+  }, [buildFilterString, router]);
+
+  // Handle filter changes
+  const handleFilterChange = useCallback((newFilters: FilterState) => {
+    setFilters(newFilters);
+    setCurrentPage(1);
+  }, []);
+
+  // Fetch jobs when URL parameters change
   useEffect(() => {
-    fetchJobs();
+    setCurrentPage(1);
+    fetchJobs(1);
   }, [fetchJobs]);
 
-  // Update search parameters when URL changes
+  // Fetch jobs when page changes
   useEffect(() => {
-    const jobTitle = searchParams.get('jobTitle') || '';
-    const location = searchParams.get('location') || '';
-    setSearchJobTitle(jobTitle);
-    setSearchLocation(location);
-    setCurrentPage(1); // Reset to page 1 when search changes
-  }, [searchParams]);
+    if (currentPage > 1) {
+      fetchJobs(currentPage);
+    }
+  }, [currentPage, fetchJobs]);
 
-  const handleSearch = (jobTitle: string, location: string) => {
-    setSearchJobTitle(jobTitle);
-    setSearchLocation(location);
-    setCurrentPage(1);
-  };
-
-  const handleFilterChange = (newFilters: FilterState) => {
-    setFilters(newFilters);
-    setCurrentPage(1); // Reset to page 1 when filters change
-  };
-
-  // Mapping function to convert filter values to job data values
+  // Mapping functions for filters
   const mapJobLevel = (filterLevel: string): string[] => {
     const levelMap: { [key: string]: string[] } = {
       'Entry Level': ['INTERNSHIP', 'FRESHER'],
@@ -114,9 +152,8 @@ const JobListing: React.FC = () => {
   };
 
   const mapSalaryRange = useCallback((salary: number | null): boolean => {
-    if (!salary) return false;
+    if (!salary || filters.salaryRanges.length === 0) return filters.salaryRanges.length === 0;
 
-    // Convert VND to USD for comparison (approximate rate: 1 USD = 24,000 VND)
     const salaryInUSD = salary / 24000;
 
     return filters.salaryRanges.some((range) => {
@@ -135,6 +172,7 @@ const JobListing: React.FC = () => {
     });
   }, [filters.salaryRanges]);
 
+  // Apply client-side filters
   const filteredJobs = useMemo(() => {
     if (!jobs.length) return [];
 
@@ -157,6 +195,14 @@ const JobListing: React.FC = () => {
         }
       }
 
+      // Job Level filter
+      if (filters.jobLevels.length > 0) {
+        const jobLevels = filters.jobLevels.flatMap(mapJobLevel);
+        if (!jobLevels.includes(job.level || '')) {
+          return false;
+        }
+      }
+
       // Salary Range filter
       if (filters.salaryRanges.length > 0) {
         if (!mapSalaryRange(job.salary)) {
@@ -168,8 +214,8 @@ const JobListing: React.FC = () => {
     });
   }, [jobs, filters, mapSalaryRange]);
 
-  // Pagination logic
-  const totalPages = Math.ceil(filteredJobs.length / jobsPerPage);
+  // Pagination for filtered results
+  const totalFilteredPages = Math.ceil(filteredJobs.length / jobsPerPage);
   const paginatedJobs = filteredJobs.slice(
     (currentPage - 1) * jobsPerPage,
     currentPage * jobsPerPage
@@ -177,8 +223,28 @@ const JobListing: React.FC = () => {
 
   const onPageChange = (page: number) => {
     setCurrentPage(page);
-    // Optionally scroll to top of job list
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Determine which pagination to show
+  const hasActiveFilters = filters.employmentTypes.length > 0 ||
+                          filters.skills.length > 0 ||
+                          filters.jobLevels.length > 0 ||
+                          filters.salaryRanges.length > 0;
+
+  const showPagination = hasActiveFilters ? totalFilteredPages > 1 : meta.pages > 1;
+  const totalPages = hasActiveFilters ? totalFilteredPages : meta.pages;
+  const displayJobs = hasActiveFilters ? paginatedJobs : jobs;
+
+  // Reset filters
+  const resetFilters = () => {
+    setFilters({
+      employmentTypes: [],
+      skills: [],
+      jobLevels: [],
+      salaryRanges: [],
+    });
+    setCurrentPage(1);
   };
 
   // Loading state
@@ -295,18 +361,18 @@ const JobListing: React.FC = () => {
               <p className="text-gray-600 text-lg">Tìm kiếm cơ hội việc làm phù hợp với bạn</p>
 
               {/* Search Results Summary */}
-              {(searchJobTitle || searchLocation) && (
+              {(currentSearchTerms.jobTitle || currentSearchTerms.location) && (
                 <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <h3 className="text-sm font-semibold text-blue-900 mb-2">Kết quả tìm kiếm:</h3>
                   <div className="flex flex-wrap gap-2">
-                    {searchJobTitle && (
+                    {currentSearchTerms.jobTitle && (
                       <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                        Tên công việc: {searchJobTitle}
+                        Tên công việc: {currentSearchTerms.jobTitle}
                       </span>
                     )}
-                    {searchLocation && (
+                    {currentSearchTerms.location && (
                       <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                        Địa điểm: {searchLocation}
+                        Địa điểm: {currentSearchTerms.location}
                       </span>
                     )}
                   </div>
@@ -317,40 +383,34 @@ const JobListing: React.FC = () => {
                 <span className="text-sm text-gray-500">
                   Hiển thị{' '}
                   <span className="font-semibold">
-                    {Math.min(currentPage * jobsPerPage, meta.total)}
+                    {hasActiveFilters ? filteredJobs.length : Math.min(currentPage * jobsPerPage, meta.total)}
                   </span>{' '}
-                  trong số <span className="font-semibold">{meta.total}</span> việc làm
+                  trong số <span className="font-semibold">{hasActiveFilters ? filteredJobs.length : meta.total}</span> việc làm
                 </span>
-                {(filters.employmentTypes.length > 0 ||
-                  filters.skills.length > 0 ||
-                  filters.jobLevels.length > 0 ||
-                  filters.salaryRanges.length > 0) && (
-                    <span className="text-sm text-blue-600">(Kết quả đã lọc)</span>
-                  )}
+                {hasActiveFilters && (
+                  <span className="text-sm text-blue-600">(Kết quả đã lọc)</span>
+                )}
               </div>
             </div>
 
             {/* Active Filters Display */}
-            {(filters.employmentTypes.length > 0 ||
-              filters.skills.length > 0 ||
-              filters.jobLevels.length > 0 ||
-              filters.salaryRanges.length > 0) && (
-                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h3 className="text-sm font-semibold text-blue-900 mb-2">Bộ lọc đang áp dụng:</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {[...filters.employmentTypes, ...filters.skills, ...filters.jobLevels, ...filters.salaryRanges].map(
-                      (filter, index) => (
-                        <span
-                          key={index}
-                          className="px-3 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
-                        >
-                          {filter}
-                        </span>
-                      )
-                    )}
-                  </div>
+            {hasActiveFilters && (
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h3 className="text-sm font-semibold text-blue-900 mb-2">Bộ lọc đang áp dụng:</h3>
+                <div className="flex flex-wrap gap-2">
+                  {[...filters.employmentTypes, ...filters.skills, ...filters.jobLevels, ...filters.salaryRanges].map(
+                    (filter, index) => (
+                      <span
+                        key={index}
+                        className="px-3 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                      >
+                        {filter}
+                      </span>
+                    )
+                  )}
                 </div>
-              )}
+              </div>
+            )}
 
             {/* Job Cards Grid */}
             {jobs.length === 0 ? (
@@ -375,19 +435,19 @@ const JobListing: React.FC = () => {
                 </h3>
                 <p className="text-gray-500">Vui lòng quay lại sau để xem thêm cơ hội việc làm mới!</p>
               </div>
-            ) : filteredJobs.length > 0 ? (
+            ) : displayJobs.length > 0 ? (
               <>
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-6 mb-8">
-                  {filteredJobs.map((job) => (
+                  {displayJobs.map((job) => (
                     <CardJob key={job.id} job={job} />
                   ))}
                 </div>
-                {/* Pagination - Always show when there are multiple pages from API */}
-                {meta.pages > 1 && (
+                {/* Pagination */}
+                {showPagination && (
                   <div className="flex overflow-x-auto sm:justify-center">
                     <Pagination
-                      currentPage={meta.page}
-                      totalPages={meta.pages}
+                      currentPage={currentPage}
+                      totalPages={totalPages}
                       onPageChange={onPageChange}
                       showIcons
                     />
@@ -416,14 +476,7 @@ const JobListing: React.FC = () => {
                 </h3>
                 <p className="text-gray-500 mb-4">Thử điều chỉnh bộ lọc để xem thêm kết quả</p>
                 <button
-                  onClick={() =>
-                    setFilters({
-                      employmentTypes: [],
-                      skills: [],
-                      jobLevels: [],
-                      salaryRanges: [],
-                    })
-                  }
+                  onClick={resetFilters}
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   Xóa tất cả bộ lọc

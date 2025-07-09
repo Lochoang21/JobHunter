@@ -93,17 +93,10 @@ const SidebarContent: MenuItem[] = [
       },
       {
         name: "Subscriber",
-        icon: "solar:user-check-rounded-outline",
+        icon: "solar:bell-bing-outline",
         id: uniqueId(),
         url: "/admin/ui/subscriber",
         module: "subscribers",
-      },
-      {
-        name: "Form",
-        icon: "solar:password-minimalistic-outline",
-        id: uniqueId(),
-        url: "/admin/ui/form",
-        role: "SUPER_ADMIN",
       },
     ],
   },

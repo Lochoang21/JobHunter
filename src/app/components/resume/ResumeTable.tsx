@@ -26,11 +26,11 @@ interface SearchState {
 
 const ResumeTable: React.FC<ResumeTableProps> = ({ refreshKey = 0 }) => {
     const [resumes, setResumes] = useState<Resume[]>([]);
-    const [meta, setMeta] = useState({ page: 1, pageSize: 10, pages: 1, total: 0 });
+    const [meta, setMeta] = useState({ page: 1, pageSize: 5, pages: 1, total: 0 });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(1);
-    const [size, setSize] = useState(10);
+    const [size, setSize] = useState(5);
     const [search, setSearch] = useState<SearchState>({ field: "email", value: "" });
     const [searchField, setSearchField] = useState("email");
 
@@ -58,7 +58,7 @@ const ResumeTable: React.FC<ResumeTableProps> = ({ refreshKey = 0 }) => {
         try {
             const filter = debouncedSearchValue ? `${search.field}~\ '${debouncedSearchValue}'` : "";
             const response = await api.get<ResumeResponse>("/resumes", {
-                params: { page: page - 1, size, filter },
+                params: { page, size, filter },
             });
             setResumes(response.data.data.result);
             setMeta(response.data.data.meta);
@@ -165,7 +165,7 @@ const ResumeTable: React.FC<ResumeTableProps> = ({ refreshKey = 0 }) => {
     };
 
     // Table action items (View, Edit, Delete) với phân quyền mới
-    const getTableActions = (resume : Resume) => {
+    const getTableActions = (resume: Resume) => {
         const actions = [];
         // View action - cần quyền read
         if (perms.canRead) {
