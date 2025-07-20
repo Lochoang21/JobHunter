@@ -6,6 +6,7 @@ import { Icon } from "@iconify/react";
 import api from "@/services/api";
 import { User, ApiResponse, DeleteUserResponse } from "@/types/user";
 import UserDetail from "@/app/components/users/UserDetail"
+import CreateUser from "./CreateUser";
 import UpdateUser from "./UpdateUser";
 import useDebounce from "@/app/hooks/useDebounce";
 import { useAuth } from '@/contexts/AuthContext';
@@ -158,14 +159,17 @@ const UserTable: React.FC<UserTableProps> = ({ refreshKey = 0 }) => {
       <div className="flex justify-between items-center mb-4">
         <h5 className="card-title">Users</h5>
         {/* Nút tạo user chỉ hiển thị nếu có quyền create */}
-      {perms.canCreate && (
-        <Button color="primary" className="mb-4" onClick={() => setIsUpdateModalOpen(true)}>
-          Create User
-        </Button>
-      )}
+        {perms.canCreate && (
+          <CreateUser
+            onUserCreated={() => {
+              // Refresh table
+              setInternalRefreshKey(prev => prev + 1);
+            }}
+          />
+        )}
       </div>
 
-      
+
 
       {/* Search Bar */}
       <form onSubmit={handleSearch} className="my-4 flex gap-4 items-center">

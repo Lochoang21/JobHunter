@@ -207,11 +207,6 @@ const ResumeTable: React.FC<ResumeTableProps> = ({ refreshKey = 0 }) => {
         <div className="rounded-xl dark:shadow-dark-md shadow-md bg-white dark:bg-darkgray p-6 relative w-full break-words">
             <div className="flex justify-between items-center mb-4">
                 <h5 className="card-title">Resumes</h5>
-                {perms.canCreate && (
-                    <Button color="primary" onClick={() => setIsUpdateModalOpen(true)}>
-                        Create Resume
-                    </Button>
-                )}
             </div>
 
             {/* Search Bar */}

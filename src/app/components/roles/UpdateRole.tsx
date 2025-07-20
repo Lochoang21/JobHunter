@@ -218,11 +218,11 @@ const UpdateRole: React.FC<UpdateRoleProps> = ({ role, isOpen, onClose }) => {
 
     // Group permissions by module
     const groupedPermissions = permissions.reduce((acc, permission) => {
-        const module = permission.module || 'Other';
-        if (!acc[module]) {
-            acc[module] = [];
+        const moduleName = permission.module || 'Other';
+        if (!acc[moduleName]) {
+            acc[moduleName] = [];
         }
-        acc[module].push(permission);
+        acc[moduleName].push(permission);
         return acc;
     }, {} as Record<string, Permission[]>);
 

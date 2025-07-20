@@ -223,11 +223,11 @@ const CreateRole: React.FC<CreateRoleProps> = ({
 
     // Group permissions by module
     const permissionsByModule = permissions.reduce((acc, permission) => {
-        const module = permission.module;
-        if (!acc[module]) {
-            acc[module] = [];
+        const moduleName = permission.module;
+        if (!acc[moduleName]) {
+            acc[moduleName] = [];
         }
-        acc[module].push(permission);
+        acc[moduleName].push(permission);
         return acc;
     }, {} as Record<string, Permission[]>);
 

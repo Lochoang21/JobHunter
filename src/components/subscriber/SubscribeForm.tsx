@@ -38,7 +38,7 @@ const SubscribeForm: React.FC = () => {
             await createSubscriber({
                 name: user.name || user.email,
                 email: user.email,
-                skills: selectedSkills
+                skills: selectedSkills.map(skillId => ({ id: skillId }))
             });
             setSuccess(true);
         } catch (err) {
