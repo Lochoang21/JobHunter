@@ -1,4 +1,5 @@
 🧭 JobHunter
+
 JobHunter là một ứng dụng web phát triển bằng Next.js, giúp người dùng dễ dàng tìm kiếm và ứng tuyển các vị trí công việc phù hợp. Giao diện hiện đại, thân thiện và tối ưu hiệu suất.
 
 🚀 Tính năng chính
@@ -12,16 +13,15 @@ Chi tiết công việc: bao gồm tiêu đề, mô tả, yêu cầu, công ty, 
 
 Quản lý tài khoản: đăng ký / đăng nhập / chỉnh sửa profile (nếu backend hỗ trợ).
 
-Tối ưu SEO & performance: server-side rendering, pre-fetch…
 
 🧩 Kiến trúc & Công nghệ
 Layer	Thông tin
 Framework	Next.js (Webpack + React)
-Kiểm soát trạng thái	React context / Redux / SWR / React Query (tuỳ theo repo)
+Kiểm soát trạng thái	React context
 Router	Next.js routing (file-based)
-Fetch data	getServerSideProps / getStaticProps / SWR hoặc React Query
-CSS / UI	CSS Modules / SCSS / Tailwind CSS / Chakra UI / Material UI
-API	RESTful hoặc GraphQL (backend riêng hoặc bên thứ ba)
+Fetch data	getServerSideProps
+CSS / UI	CSS Modules / SCSS / Tailwind CSS / Flowbite React
+API	RESTful
 Code quality	ESLint + Prettier + Husky (hook commit)
 
 ⚙️ Cài đặt & Chạy
@@ -96,17 +96,6 @@ Bạn có thể deploy nhanh lên:
 Vercel: tích hợp sẵn với Next.js
 
 Netlify, Heroku (với Node server), hoặc các dịch vụ có hỗ trợ Node.js
-
-🛠️ Thêm nâng cao (option)
-Pagination không đồng bộ (infinite scroll) dùng React Query
-
-Tích hợp chat nhân viên / trả lời qua chatbot
-
-Quản lý dashboard nhà tuyển dụng (CRUD job posts, xem ứng tuyển)
-
-Tối ưu trải nghiệm mobile (PWA, offline)
-
-Tích hợp thông báo qua email / SMS
 
 🙏 Cảm ơn!
 Cảm ơn bạn đã sử dụng JobHunter!
